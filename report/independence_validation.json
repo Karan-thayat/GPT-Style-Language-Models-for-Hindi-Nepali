@@ -1,0 +1,38 @@
+{
+  "checks": {
+    "as_purity": 1.0,
+    "as_train_test_overlap": 0,
+    "as_train_validation_overlap": 0,
+    "as_validation_test_overlap": 0,
+    "bn_purity": 1.0,
+    "bn_train_test_overlap": 0,
+    "bn_train_validation_overlap": 0,
+    "bn_validation_test_overlap": 0,
+    "shared_documents": 0,
+    "vocab_jaccard": 0.13976349907394214
+  },
+  "corpus": {
+    "as": {
+      "test": 215,
+      "train": 2978,
+      "validation": 215
+    },
+    "bn": {
+      "test": 208,
+      "train": 2681,
+      "validation": 204
+    }
+  },
+  "failures": [],
+  "passed": true,
+  "tokenizers": {
+    "as": {
+      "model_file": "assamese/tokenizer/as_bpe_24000.model",
+      "model_sha256": "5b6916b405783e07423b1655e89ed085e2f7e85548a4c7eebcf1f82d22c50de6"
+    },
+    "bn": {
+      "model_file": "bengali/tokenizer/bn_unigram_16000.model",
+      "model_sha256": "58e2d1493ca3d228532dd497bf91245fe3482c9bcdfa46f0f1f8d0d888620c84"
+    }
+  }
+}

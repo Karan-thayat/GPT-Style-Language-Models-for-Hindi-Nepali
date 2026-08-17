@@ -1,0 +1,134 @@
+# Assamese (Model L) corpus source manifest
+#
+# Model L must come from the allowed lower-resource list; Assamese is chosen from
+# it. Assamese has ~15M speakers and official status in Assam, yet its public
+# digital corpora are one to two orders of magnitude smaller than Bengali's -
+# exactly the resource-tier contrast this project studies.
+#
+# Assamese is written in the Bengali-Assamese script but is NOT Bengali. Two
+# letters are decisive: ৰ (U+09F0) and ৱ (U+09F1). The pipeline preserves them
+# for Assamese and runs a Bengali-vs-Assamese identity check on every document,
+# because Bengali text contaminating this corpus is the single likeliest way to
+# violate the "no shared data" constraint.
+
+language: as
+language_name: Assamese
+model: L
+tier: lower-resource
+
+sources:
+  # --- Downloaded public corpora -------------------------------------------
+  - source_id: wikipedia_as
+    type: huggingface
+    dataset: wikimedia/wikipedia
+    config: 20231101.as
+    split: train
+    text_field: text
+    collection: downloaded
+    enabled: true
+    # See the Bengali manifest: downloaded sources are capped so that manual
+    # collection can reach the required >=20% share of training tokens.
+    limit: 1500
+    notes: >
+      Assamese Wikipedia - small (tens of thousands of articles) but the
+      cleanest available Assamese text.
+
+  - source_id: sangraha_as
+    type: huggingface
+    dataset: ai4bharat/sangraha
+    # For the full run, widen to 'verified/asm/*.parquet'.
+    data_files: verified/asm/data-0.parquet
+    split: train
+    text_field: text
+    collection: downloaded
+    enabled: true
+    limit: 1500
+    notes: >
+      AI4Bharat Sangraha verified Assamese split. The largest curated Assamese
+      corpus that is openly available; still far short of Bengali's volume.
+      Note: spot-checking this split found non-Assamese, Latin-script documents
+      in it, which is exactly what the language-identity filter removes.
+
+  - source_id: oscar_as
+    type: huggingface
+    dataset: oscar-corpus/OSCAR-2301
+    config: as
+    split: train
+    text_field: text
+    collection: downloaded
+    enabled: false
+    notes: >
+      OSCAR-2301 Assamese. Gated - accept terms and log in to enable. Known to
+      contain Bengali mislabelled as Assamese, so the language-identity filter
+      matters especially here.
+
+  # --- Manually collected: web scraping ------------------------------------
+  - source_id: manual_scrape_wikisource_as
+    type: scrape
+    collection: manual
+    enabled: true
+    start_urls:
+      # বেটুপাত = the Assamese Wikisource main page.
+      - https://as.wikisource.org/wiki/%E0%A6%AC%E0%A7%87%E0%A6%9F%E0%A7%81%E0%A6%AA%E0%A6%BE%E0%A6%A4
+    allow_patterns:
+      - 'as\.wikisource\.org/wiki/'
+    deny_patterns:
+      - 'action='
+      - 'oldid='
+      - 'Special:'
+      - 'সহায়:'
+      - 'সদস্য:'
+      - 'আলোচনা:'
+    content_selector: '#mw-content-text'
+    # Sized to the pages already in `cache_dir`, so a re-run replays the cache
+    # instead of re-crawling for hours at the 1 req/s rate limit. Raise this
+    # (and re-run) to collect more manual text; the cache makes it incremental.
+    max_pages: 520
+    max_depth: 4
+    delay_seconds: 1.0
+    cache_dir: assamese/data/raw/scrape_cache
+    notes: >
+      Assamese Wikisource - public-domain Assamese literature. Genuinely
+      Assamese orthography, so it is also a useful positive control for the
+      language-identity filter.
+
+  - source_id: manual_scrape_custom_as
+    type: scrape
+    collection: manual
+    enabled: false
+    start_urls:
+      - https://example.com/replace-me
+    allow_patterns: []
+    deny_patterns: []
+    content_selector: null
+    max_pages: 1500
+    max_depth: 3
+    delay_seconds: 1.5
+    cache_dir: assamese/data/raw/scrape_cache
+    notes: >
+      TEMPLATE - add your own Assamese sites here. Because Assamese public data
+      is scarce, manual collection is where Model L's corpus is won or lost;
+      expect to enable several sites. Verify robots.txt and terms first.
+
+  # --- Manually collected: OCR ---------------------------------------------
+  - source_id: manual_ocr_as
+    type: local
+    collection: manual
+    enabled: true
+    path: assamese/data/raw/ocr
+    glob: '**/*.jsonl'
+    text_field: text
+    notes: >
+      OCR output from `scripts/run_ocr.py --language as`. OCR is especially
+      valuable for Assamese: much of the language's published material exists
+      only in print, so scanned books are a real way to close the data gap.
+
+  - source_id: manual_typed_as
+    type: local
+    collection: manual
+    enabled: true
+    path: assamese/data/raw/typed
+    glob: '**/*.txt'
+    split_on_blank_lines: true
+    notes: >
+      Hand-typed or transcribed Assamese text, blank-line separated.

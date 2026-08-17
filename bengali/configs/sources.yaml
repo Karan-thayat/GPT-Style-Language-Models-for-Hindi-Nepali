@@ -1,0 +1,143 @@
+# Bengali (Model H) corpus source manifest
+#
+# Model H is the higher-resource, non-English Indian language. Bengali is chosen
+# because it is the second most-spoken language in India (~97M L1 speakers in
+# India per Census 2011, ~237M worldwide), has a large public web and Wikipedia
+# presence, and is written in the Bengali script - which lets the same
+# normalization stack serve Assamese while keeping the corpora fully separate.
+#
+# `collection` semantics:
+#   downloaded -> public corpora pulled from a hub
+#   manual     -> text this project collected itself (scraped or OCR'd)
+#
+# Manual sources must supply >= 20% of final training tokens. Add your own
+# scrape/OCR entries below and set `enabled: true`.
+
+language: bn
+language_name: Bengali
+model: H
+tier: higher-resource
+
+sources:
+  # --- Downloaded public corpora -------------------------------------------
+  - source_id: wikipedia_bn
+    type: huggingface
+    dataset: wikimedia/wikipedia
+    config: 20231101.bn
+    split: train
+    text_field: text
+    collection: downloaded
+    enabled: true
+    # Per-source document cap, applied on top of the profile's limit. Downloaded
+    # sources are capped so that manually collected text clears the >=20% share the
+    # assignment requires. Bengali Wikipedia articles are long (~1,100 words each),
+    # so this source dominates word counts faster than its document count suggests;
+    # the cap is set from measured words/document, not guessed.
+    limit: 1000
+    notes: >
+      Bengali Wikipedia. Clean encyclopedic prose, good for a normalization
+      baseline, but stylistically narrow - it must not be the whole corpus.
+
+  - source_id: sangraha_bn
+    type: huggingface
+    dataset: ai4bharat/sangraha
+    # Sangraha's configs are verified/unverified/synthetic with the language as a
+    # subdirectory, so the language is selected by file pattern, not config name.
+    # For the full run, widen this to 'verified/ben/*.parquet'.
+    data_files: verified/ben/data-0.parquet
+    split: train
+    text_field: text
+    collection: downloaded
+    enabled: true
+    # ~400 words/document, so this contributes far less volume per document than
+    # Wikipedia and can keep a higher document cap.
+    limit: 1200
+    notes: >
+      AI4Bharat Sangraha verified Bengali split - large, deduplicated web and
+      news text. This is the main volume driver toward the 500M-token target.
+
+  - source_id: oscar_bn
+    type: huggingface
+    dataset: oscar-corpus/OSCAR-2301
+    config: bn
+    split: train
+    text_field: text
+    collection: downloaded
+    enabled: false
+    notes: >
+      OSCAR-2301 Bengali. Gated dataset - accept the terms on the Hub and run
+      `huggingface-cli login`, then set enabled: true. Noisier than Sangraha,
+      so the cleaning thresholds matter more here.
+
+  # --- Manually collected: web scraping ------------------------------------
+  # These are templates with conservative crawl limits. Point them at sources
+  # you are entitled to collect from, then raise max_pages.
+  - source_id: manual_scrape_wikisource_bn
+    type: scrape
+    collection: manual
+    enabled: true
+    start_urls:
+      - https://bn.wikisource.org/wiki/%E0%A6%AA%E0%A7%8D%E0%A6%B0%E0%A6%A7%E0%A6%BE%E0%A6%A8_%E0%A6%AA%E0%A6%BE%E0%A6%A4%E0%A6%BE
+    allow_patterns:
+      - 'bn\.wikisource\.org/wiki/'
+    deny_patterns:
+      - 'action='
+      - 'oldid='
+      - 'Special:'
+      - 'সহায়িকা:'
+      - 'ব্যবহারকারী:'
+      - 'আলাপ:'
+    content_selector: '#mw-content-text'
+    # Sized to the pages already in `cache_dir`, so a re-run replays the cache
+    # instead of re-crawling for hours at the 1 req/s rate limit. Raise this
+    # (and re-run) to collect more manual text; the cache makes it incremental.
+    max_pages: 380
+    max_depth: 4
+    delay_seconds: 1.0
+    cache_dir: bengali/data/raw/scrape_cache
+    notes: >
+      Bengali Wikisource: public-domain books and literature. Long-form literary
+      prose, which balances the encyclopedic and news registers.
+
+  - source_id: manual_scrape_custom_bn
+    type: scrape
+    collection: manual
+    enabled: false
+    start_urls:
+      - https://example.com/replace-me
+    allow_patterns: []
+    deny_patterns: []
+    content_selector: null
+    max_pages: 1000
+    max_depth: 2
+    delay_seconds: 1.5
+    cache_dir: bengali/data/raw/scrape_cache
+    notes: >
+      TEMPLATE - add your own site here. Check the site's robots.txt and terms
+      first; the crawler honours robots.txt and rate-limits, but permission to
+      collect is your responsibility. Leaving content_selector null uses the
+      densest-text-block heuristic, which works for most news layouts.
+
+  # --- Manually collected: OCR ---------------------------------------------
+  - source_id: manual_ocr_bn
+    type: local
+    collection: manual
+    enabled: true
+    path: bengali/data/raw/ocr
+    glob: '**/*.jsonl'
+    text_field: text
+    notes: >
+      Output of `scripts/run_ocr.py`. Put scanned PDFs/books in
+      bengali/data/raw/pdf, run the OCR script, and the JSONL lands here.
+      Missing directory is not an error - the source simply yields nothing.
+
+  - source_id: manual_typed_bn
+    type: local
+    collection: manual
+    enabled: true
+    path: bengali/data/raw/typed
+    glob: '**/*.txt'
+    split_on_blank_lines: true
+    notes: >
+      Hand-typed or hand-transcribed text. Blank-line-separated blocks each
+      become one document.

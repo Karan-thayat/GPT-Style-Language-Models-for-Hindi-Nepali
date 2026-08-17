@@ -1,0 +1,33 @@
+# Phase 1 dependencies (data collection + tokenizer construction).
+#
+# Note on what is deliberately absent: no HuggingFace `transformers`, and no
+# pretrained tokenizer package. The project forbids pretrained models and
+# tokenizers, so `sentencepiece` is used only to *train* vocabularies from
+# scratch on this project's own corpora. `datasets` is used purely as a corpus
+# download/streaming client.
+#
+# torch is not required for Phase 1; it is added in Phase 2 for the model.
+
+sentencepiece==0.2.2      # tokenizer training (BPE / Unigram) from scratch
+datasets==5.0.1           # streaming corpus download from the HF hub
+numpy==2.5.2              # token id arrays / binary corpus output
+PyYAML==6.0.3             # pipeline and source manifest configs
+
+# Manual collection: scraping + HTML extraction
+requests==2.34.2
+beautifulsoup4==4.15.0
+lxml==6.1.1
+
+# Statistics, plots, and progress reporting
+matplotlib==3.11.1
+pandas==3.0.5
+tqdm==4.70.0
+regex==2026.7.19
+
+# --- External (non-pip) tools for OCR ingestion -----------------------------
+# Only needed if you run scripts/run_ocr.py on scanned PDFs:
+#
+#   sudo apt-get install -y poppler-utils tesseract-ocr \
+#       tesseract-ocr-ben tesseract-ocr-asm
+#
+# Check availability with:  python scripts/run_ocr.py --language bn --check

@@ -1,0 +1,491 @@
+{
+  "budget_reached": false,
+  "cleaning_stats": {
+    "keep_rate": 0.8427299703264095,
+    "kept": 3408,
+    "kept_chars": 16129501,
+    "kept_words": 2494022,
+    "rejected": {
+      "exact_duplicate": 13,
+      "high_digit_ratio": 149,
+      "high_symbol_ratio": 10,
+      "long_char_run": 10,
+      "low_script_ratio": 211,
+      "near_duplicate": 101,
+      "repeated_lines": 83,
+      "repeated_ngram": 2,
+      "too_long": 2,
+      "too_short_chars": 28,
+      "too_short_words": 26,
+      "wrong_language": 1
+    },
+    "seen": 4044
+  },
+  "config": {
+    "cleaning": {
+      "check_language_identity": true,
+      "dedup_exact": true,
+      "dedup_near": true,
+      "max_char_run": 20,
+      "max_chars": 500000,
+      "max_digit_ratio": 0.2,
+      "max_duplicate_line_ratio": 0.35,
+      "max_replacement_ratio": 0.003,
+      "max_symbol_ratio": 0.12,
+      "max_top_ngram_ratio": 0.25,
+      "min_chars": 120,
+      "min_script_ratio": 0.65,
+      "min_words": 15,
+      "minhash_permutations": 96,
+      "near_dup_threshold": 0.7,
+      "shingle_size": 5
+    },
+    "splits": {
+      "pinned_sources": {},
+      "seed": 20260812,
+      "test": 0.06,
+      "train": 0.88,
+      "validation": 0.06
+    }
+  },
+  "corpus_stats": {
+    "averages": {
+      "characters_per_document": 4732.8348004694835,
+      "characters_per_word": 6.467264923885996,
+      "words_per_document": 731.8139671361503,
+      "words_per_sentence": 7.37952746586185
+    },
+    "by_source": {
+      "characters": {
+        "manual_scrape_wikisource_as": 5621570,
+        "sangraha_as": 4271903,
+        "wikipedia_as": 6236028
+      },
+      "documents": {
+        "manual_scrape_wikisource_as": 579,
+        "sangraha_as": 1425,
+        "wikipedia_as": 1404
+      },
+      "words": {
+        "manual_scrape_wikisource_as": 902364,
+        "sangraha_as": 663589,
+        "wikipedia_as": 928069
+      }
+    },
+    "collection_split": {
+      "characters": {
+        "downloaded": 10507931,
+        "manual": 5621570
+      },
+      "documents": {
+        "downloaded": 2829,
+        "manual": 579
+      },
+      "manual_word_fraction": 0.36181076189384054,
+      "words": {
+        "downloaded": 1591658,
+        "manual": 902364
+      }
+    },
+    "distinct_characters": 812,
+    "document_length_words": {
+      "max": 67694,
+      "median": 246.5,
+      "min": 15,
+      "p10": 72.0,
+      "p25": 122.0,
+      "p75": 614.5,
+      "p90": 1392.2000000000007,
+      "p99": 7793.879999999948,
+      "sampled_documents": 3408
+    },
+    "language": "as",
+    "lexical_diversity": {
+      "is_lower_bound": false,
+      "type_token_ratio": 0.14169161298496966,
+      "word_types": 353382
+    },
+    "script_composition": {
+      "bengali_char_ratio": 0.9112207897064534,
+      "digit_char_ratio": 0.013507518149168929,
+      "latin_char_ratio": 0.03516282577752719,
+      "punctuation_char_ratio": 0.03910865496871557
+    },
+    "top_characters": [
+      {
+        "char": "া",
+        "codepoint": "U+09BE",
+        "count": 1187634,
+        "name": "BENGALI VOWEL SIGN AA"
+      },
+      {
+        "char": "ৰ",
+        "codepoint": "U+09F0",
+        "count": 1105159,
+        "name": "BENGALI LETTER RA WITH MIDDLE DIAGONAL"
+      },
+      {
+        "char": "ি",
+        "codepoint": "U+09BF",
+        "count": 770918,
+        "name": "BENGALI VOWEL SIGN I"
+      },
+      {
+        "char": "্",
+        "codepoint": "U+09CD",
+        "count": 745708,
+        "name": "BENGALI SIGN VIRAMA"
+      },
+      {
+        "char": "ত",
+        "codepoint": "U+09A4",
+        "count": 594210,
+        "name": "BENGALI LETTER TA"
+      },
+      {
+        "char": "ক",
+        "codepoint": "U+0995",
+        "count": 575642,
+        "name": "BENGALI LETTER KA"
+      },
+      {
+        "char": "ে",
+        "codepoint": "U+09C7",
+        "count": 558820,
+        "name": "BENGALI VOWEL SIGN E"
+      },
+      {
+        "char": "ন",
+        "codepoint": "U+09A8",
+        "count": 543541,
+        "name": "BENGALI LETTER NA"
+      },
+      {
+        "char": "ব",
+        "codepoint": "U+09AC",
+        "count": 427396,
+        "name": "BENGALI LETTER BA"
+      },
+      {
+        "char": "ল",
+        "codepoint": "U+09B2",
+        "count": 422083,
+        "name": "BENGALI LETTER LA"
+      },
+      {
+        "char": "য",
+        "codepoint": "U+09AF",
+        "count": 382436,
+        "name": "BENGALI LETTER YA"
+      },
+      {
+        "char": "ম",
+        "codepoint": "U+09AE",
+        "count": 365752,
+        "name": "BENGALI LETTER MA"
+      },
+      {
+        "char": "প",
+        "codepoint": "U+09AA",
+        "count": 329666,
+        "name": "BENGALI LETTER PA"
+      },
+      {
+        "char": "ু",
+        "codepoint": "U+09C1",
+        "count": 300724,
+        "name": "BENGALI VOWEL SIGN U"
+      },
+      {
+        "char": "স",
+        "codepoint": "U+09B8",
+        "count": 295545,
+        "name": "BENGALI LETTER SA"
+      },
+      {
+        "char": "হ",
+        "codepoint": "U+09B9",
+        "count": 244026,
+        "name": "BENGALI LETTER HA"
+      },
+      {
+        "char": "দ",
+        "codepoint": "U+09A6",
+        "count": 232041,
+        "name": "BENGALI LETTER DA"
+      },
+      {
+        "char": "ো",
+        "codepoint": "U+09CB",
+        "count": 230105,
+        "name": "BENGALI VOWEL SIGN O"
+      },
+      {
+        "char": "়",
+        "codepoint": "U+09BC",
+        "count": 224517,
+        "name": "BENGALI SIGN NUKTA"
+      },
+      {
+        "char": "ী",
+        "codepoint": "U+09C0",
+        "count": 187829,
+        "name": "BENGALI VOWEL SIGN II"
+      },
+      {
+        "char": "গ",
+        "codepoint": "U+0997",
+        "count": 177958,
+        "name": "BENGALI LETTER GA"
+      },
+      {
+        "char": "।",
+        "codepoint": "U+0964",
+        "count": 174668,
+        "name": "DEVANAGARI DANDA"
+      },
+      {
+        "char": "ই",
+        "codepoint": "U+0987",
+        "count": 166010,
+        "name": "BENGALI LETTER I"
+      },
+      {
+        "char": "আ",
+        "codepoint": "U+0986",
+        "count": 160114,
+        "name": "BENGALI LETTER AA"
+      },
+      {
+        "char": "জ",
+        "codepoint": "U+099C",
+        "count": 160026,
+        "name": "BENGALI LETTER JA"
+      },
+      {
+        "char": "চ",
+        "codepoint": "U+099A",
+        "count": 150229,
+        "name": "BENGALI LETTER CA"
+      },
+      {
+        "char": "শ",
+        "codepoint": "U+09B6",
+        "count": 125859,
+        "name": "BENGALI LETTER SHA"
+      },
+      {
+        "char": "ট",
+        "codepoint": "U+099F",
+        "count": 125831,
+        "name": "BENGALI LETTER TTA"
+      },
+      {
+        "char": "ৱ",
+        "codepoint": "U+09F1",
+        "count": 121139,
+        "name": "BENGALI LETTER RA WITH LOWER DIAGONAL"
+      },
+      {
+        "char": "ছ",
+        "codepoint": "U+099B",
+        "count": 116132,
+        "name": "BENGALI LETTER CHA"
+      },
+      {
+        "char": "ভ",
+        "codepoint": "U+09AD",
+        "count": 104933,
+        "name": "BENGALI LETTER BHA"
+      },
+      {
+        "char": ",",
+        "codepoint": "U+002C",
+        "count": 103503,
+        "name": "COMMA"
+      },
+      {
+        "char": "ষ",
+        "codepoint": "U+09B7",
+        "count": 97557,
+        "name": "BENGALI LETTER SSA"
+      },
+      {
+        "char": "অ",
+        "codepoint": "U+0985",
+        "count": 97171,
+        "name": "BENGALI LETTER A"
+      },
+      {
+        "char": "ণ",
+        "codepoint": "U+09A3",
+        "count": 95674,
+        "name": "BENGALI LETTER NNA"
+      },
+      {
+        "char": "ৈ",
+        "codepoint": "U+09C8",
+        "count": 94846,
+        "name": "BENGALI VOWEL SIGN AI"
+      },
+      {
+        "char": "খ",
+        "codepoint": "U+0996",
+        "count": 89383,
+        "name": "BENGALI LETTER KHA"
+      },
+      {
+        "char": "ধ",
+        "codepoint": "U+09A7",
+        "count": 88082,
+        "name": "BENGALI LETTER DHA"
+      },
+      {
+        "char": "এ",
+        "codepoint": "U+098F",
+        "count": 84735,
+        "name": "BENGALI LETTER E"
+      },
+      {
+        "char": "থ",
+        "codepoint": "U+09A5",
+        "count": 82493,
+        "name": "BENGALI LETTER THA"
+      }
+    ],
+    "totals": {
+      "bytes_utf8_estimate": 48388503,
+      "characters": 16129501,
+      "documents": 3408,
+      "sentences": 337965,
+      "words": 2494022
+    }
+  },
+  "elapsed_seconds": 1688.1890871450014,
+  "language": "as",
+  "language_name": "Assamese",
+  "model": "L",
+  "profile": {
+    "name": "sampled",
+    "per_source_doc_limit": 4000,
+    "sweep_max_train_lines": 150000,
+    "target_train_tokens": null,
+    "tokenizer_max_train_lines": 300000
+  },
+  "sources": [
+    {
+      "collection": "downloaded",
+      "config": "20231101.as",
+      "dataset": "wikimedia/wikipedia",
+      "enabled": true,
+      "limit": 1500,
+      "source_id": "wikipedia_as",
+      "split": "train",
+      "text_field": "text",
+      "type": "huggingface"
+    },
+    {
+      "collection": "downloaded",
+      "data_files": "verified/asm/data-0.parquet",
+      "dataset": "ai4bharat/sangraha",
+      "enabled": true,
+      "limit": 1500,
+      "source_id": "sangraha_as",
+      "split": "train",
+      "text_field": "text",
+      "type": "huggingface"
+    },
+    {
+      "allow_patterns": [
+        "as\\.wikisource\\.org/wiki/"
+      ],
+      "cache_dir": "assamese/data/raw/scrape_cache",
+      "collection": "manual",
+      "content_selector": "#mw-content-text",
+      "delay_seconds": 1.0,
+      "deny_patterns": [
+        "action=",
+        "oldid=",
+        "Special:",
+        "সহায়:",
+        "সদস্য:",
+        "আলোচনা:"
+      ],
+      "enabled": true,
+      "max_depth": 4,
+      "max_pages": 520,
+      "source_id": "manual_scrape_wikisource_as",
+      "start_urls": [
+        "https://as.wikisource.org/wiki/%E0%A6%AC%E0%A7%87%E0%A6%9F%E0%A7%81%E0%A6%AA%E0%A6%BE%E0%A6%A4"
+      ],
+      "type": "scrape"
+    },
+    {
+      "collection": "manual",
+      "enabled": true,
+      "glob": "**/*.jsonl",
+      "path": "assamese/data/raw/ocr",
+      "source_id": "manual_ocr_as",
+      "text_field": "text",
+      "type": "local"
+    },
+    {
+      "collection": "manual",
+      "enabled": true,
+      "glob": "**/*.txt",
+      "path": "assamese/data/raw/typed",
+      "source_id": "manual_typed_as",
+      "split_on_blank_lines": true,
+      "type": "local"
+    }
+  ],
+  "split_summary": {
+    "characters": {
+      "test": 1068625,
+      "train": 13620364,
+      "validation": 1440512
+    },
+    "characters_by_collection": {
+      "test": {
+        "downloaded": 758712,
+        "manual": 309913
+      },
+      "train": {
+        "downloaded": 8979702,
+        "manual": 4640662
+      },
+      "validation": {
+        "downloaded": 769517,
+        "manual": 670995
+      }
+    },
+    "characters_by_source": {
+      "test": {
+        "manual_scrape_wikisource_as": 309913,
+        "sangraha_as": 254226,
+        "wikipedia_as": 504486
+      },
+      "train": {
+        "manual_scrape_wikisource_as": 4640662,
+        "sangraha_as": 3690916,
+        "wikipedia_as": 5288786
+      },
+      "validation": {
+        "manual_scrape_wikisource_as": 670995,
+        "sangraha_as": 326761,
+        "wikipedia_as": 442756
+      }
+    },
+    "documents": {
+      "test": 215,
+      "train": 2978,
+      "validation": 215
+    },
+    "files": {
+      "test": "/home/karan/Desktop/project lma/assamese/data/processed/as_test.jsonl",
+      "train": "/home/karan/Desktop/project lma/assamese/data/processed/as_train.jsonl",
+      "validation": "/home/karan/Desktop/project lma/assamese/data/processed/as_validation.jsonl"
+    },
+    "language": "as"
+  }
+}

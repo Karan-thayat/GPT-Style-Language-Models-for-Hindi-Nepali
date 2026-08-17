@@ -1,0 +1,88 @@
+# Bengali (Model H) Phase 1 pipeline configuration.
+#
+# Two profiles are provided. `sampled` is the bounded run used to verify the
+# pipeline end to end and to produce the figures in report/; `full` is the
+# production run that targets ~500M training tokens. Select with
+# `--profile full` on scripts/build_corpus.py.
+
+language: bn
+language_name: Bengali
+model: H
+
+paths:
+  raw_dir: bengali/data/raw
+  processed_dir: bengali/data/processed
+  tokenizer_dir: bengali/tokenizer
+  stats_dir: bengali/reports
+  logs_dir: bengali/logs
+
+# Cleaning thresholds; see lma.data.clean.CleanerConfig for what each does.
+cleaning:
+  min_chars: 200
+  min_words: 25
+  max_chars: 500000
+  min_script_ratio: 0.70
+  max_replacement_ratio: 0.002
+  max_duplicate_line_ratio: 0.30
+  max_top_ngram_ratio: 0.20
+  max_digit_ratio: 0.20
+  max_symbol_ratio: 0.10
+  max_char_run: 20
+  # Bengali is the majority language of the shared script, so the identity check
+  # mostly guards against Assamese leaking in. Kept on for symmetry and because
+  # it also removes other Bengali-script noise.
+  check_language_identity: true
+  dedup_exact: true
+  dedup_near: true
+  near_dup_threshold: 0.70
+  minhash_permutations: 96
+  shingle_size: 5
+
+# Split ratios for the full-scale run. At ~500M training tokens, 1% is still a
+# large held-out set in absolute terms (~5M tokens), which is what matters for
+# stable perplexity. The `sampled` profile overrides these - see `profiles` below.
+splits:
+  train: 0.98
+  validation: 0.01
+  test: 0.01
+  seed: 20260812
+  pinned_sources: {}
+
+tokenizer:
+  model_type: unigram
+  vocab_size: 32000
+  character_coverage: 0.9995
+  byte_fallback: true
+  split_digits: true
+  normalization_rule_name: identity
+  seed: 20260812
+  # Candidates for the vocabulary-size sweep. The chosen size must be justified
+  # by held-out fertility and unknown/byte-fallback rate, not asserted.
+  sweep_vocab_sizes: [8000, 16000, 32000, 48000, 64000]
+  sweep_model_types: [unigram, bpe]
+
+profiles:
+  sampled:
+    # Bounded verification run: enough data for real statistics, small enough to
+    # finish on a laptop without filling the disk.
+    per_source_doc_limit: 4000
+    tokenizer_max_train_lines: 300000
+    sweep_max_train_lines: 150000
+    target_train_tokens: null
+    # Ratios are a *fraction*, so on a small corpus the full run's 1% yields only
+    # a few dozen held-out documents - far too few to measure fertility or
+    # perplexity stably. The sampled profile therefore holds out 6% per split.
+    # Splits are assigned by content hash, so this changes only which documents
+    # are held out, not the deterministic, reproducible nature of the assignment.
+    splits:
+      train: 0.88
+      validation: 0.06
+      test: 0.06
+  full:
+    # Production run targeting the ~500M-token requirement. Streaming means the
+    # corpus is filtered as it downloads; the token budget stops the ingest once
+    # the target is met, so runtime scales with the target and not the source size.
+    per_source_doc_limit: null
+    tokenizer_max_train_lines: 8000000
+    sweep_max_train_lines: 1000000
+    target_train_tokens: 500000000

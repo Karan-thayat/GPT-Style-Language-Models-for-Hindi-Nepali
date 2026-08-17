@@ -1,0 +1,55 @@
+# --- Large artifacts: Google Drive, not git ---------------------------------
+# The submission instructions require datasets, tokenized corpora, and model
+# checkpoints to be hosted on Drive with links in the README, not committed.
+
+# Raw and processed corpora
+*/data/raw/
+*/data/processed/
+*.jsonl
+*.jsonl.gz
+
+# Pre-tokenized binary corpora (written by scripts/tokenize_corpus.py --write-bin)
+*.bin
+
+# Resume checkpoints. These are large (one MinHash signature per kept document)
+# and are run state, not results - the statistics JSON carries the numbers.
+checkpoints/
+*_ingest_state.json
+*_dedup_state.pkl.gz
+*.sampled.yaml
+
+# Model checkpoints (Phase 2 / Phase 3)
+*.pt
+*.pth
+*.ckpt
+checkpoints/
+
+# --- Kept in git ------------------------------------------------------------
+# Tokenizer model/vocab files are small and are graded deliverables, so they are
+# explicitly re-included after the broad ignores above.
+!*/tokenizer/*.model
+!*/tokenizer/*.vocab
+
+# Per-stage statistics JSON is small and is what the report is built from.
+!*/reports/*.json
+
+# --- Logs -------------------------------------------------------------------
+# Run logs are regenerated per run and are large; the statistics JSON files carry
+# the numbers the report needs.
+*/logs/
+*.log
+
+# --- Python -----------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.ipynb_checkpoints/
+
+# --- OS / editor ------------------------------------------------------------
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp

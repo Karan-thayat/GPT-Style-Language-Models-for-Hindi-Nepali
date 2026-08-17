@@ -1,0 +1,208 @@
+#!/usr/bin/env python3
+"""Train and evaluate one language's tokenizer, including the vocabulary sweep.
+
+Stages:
+
+1. **Sweep** (optional, ``--sweep``) - train candidate tokenizers across
+   vocabulary sizes and both algorithms, measure each on held-out validation
+   text, and select the best by fertility subject to an unknown-rate ceiling.
+2. **Final training** - fit the chosen configuration on the training split.
+3. **Evaluation** - fertility, unknown and byte-fallback rate, compression,
+   piece statistics, token frequencies, and tokenization examples, all on
+   held-out text.
+
+Usage::
+
+    python scripts/train_tokenizer.py --config bengali/configs/pipeline.yaml --sweep
+    python scripts/train_tokenizer.py --config assamese/configs/pipeline.yaml \
+        --sweep --use-sweep-best
+"""
+
+from __future__ import annotations
+
+import argparse
+import sys
+import time
+from pathlib import Path
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(REPO_ROOT))
+
+from lma.stats.corpus_stats import iter_split_texts
+from lma.stats.tokenizer_stats import (
+    TokenizerEvaluator,
+    select_best_config,
+    sweep_vocabulary_sizes,
+)
+from lma.tokenizer.train_tokenizer import TokenizerConfig, train_from_jsonl
+from lma.utils.config import load_pipeline_config
+from lma.utils.logging_utils import setup_logging, write_json
+
+
+def parse_args() -> argparse.Namespace:
+    """Parse command-line arguments."""
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--config", required=True, type=Path, help="Pipeline YAML for one language")
+    parser.add_argument("--profile", default="sampled", help="Profile from the pipeline config")
+    parser.add_argument("--sweep", action="store_true", help="Run the vocabulary-size / algorithm sweep")
+    parser.add_argument(
+        "--use-sweep-best",
+        action="store_true",
+        help="Train the final tokenizer with the sweep's winning config instead of the config file's",
+    )
+    parser.add_argument("--heldout-docs", type=int, default=3000, help="Validation documents used for evaluation")
+    parser.add_argument("--vocab-size", type=int, default=None, help="Override the final vocabulary size")
+    parser.add_argument("--model-type", default=None, choices=["unigram", "bpe"], help="Override the algorithm")
+    return parser.parse_args()
+
+
+def main() -> int:
+    """Train, sweep, and evaluate the tokenizer for one language."""
+    args = parse_args()
+    config = load_pipeline_config(args.config, args.profile)
+    language = config["language"]
+    paths = config["paths"]
+    profile = config["profile"]
+    tokenizer_cfg = config["tokenizer"]
+
+    logger = setup_logging(REPO_ROOT / paths["logs_dir"], name=f"train_tokenizer_{language}")
+    logger.info("Tokenizer stage for %s (%s), profile=%s", config["language_name"], language, profile["name"])
+
+    processed_dir = REPO_ROOT / paths["processed_dir"]
+    tokenizer_dir = REPO_ROOT / paths["tokenizer_dir"]
+    stats_dir = REPO_ROOT / paths["stats_dir"]
+
+    train_file = processed_dir / f"{language}_train.jsonl"
+    val_file = processed_dir / f"{language}_validation.jsonl"
+    for required in (train_file, val_file):
+        if not required.exists():
+            raise SystemExit(f"Missing {required}. Run scripts/build_corpus.py first.")
+
+    # Held-out text is loaded once and reused for every evaluation so all
+    # candidates are scored on exactly the same data.
+    heldout = list(iter_split_texts(val_file, limit=args.heldout_docs))
+    if not heldout:
+        raise SystemExit(f"Validation split {val_file} is empty; cannot evaluate on held-out text.")
+    logger.info("Loaded %d held-out validation documents", len(heldout))
+
+    chosen_vocab = args.vocab_size or tokenizer_cfg["vocab_size"]
+    chosen_type = args.model_type or tokenizer_cfg["model_type"]
+    sweep_results: list[dict] = []
+
+    # --- stage 1: sweep --------------------------------------------------------
+    if args.sweep:
+        sizes = tokenizer_cfg["sweep_vocab_sizes"]
+        types = tokenizer_cfg["sweep_model_types"]
+        logger.info("Sweeping vocab sizes %s over model types %s", sizes, types)
+        started = time.monotonic()
+        sweep_results = sweep_vocabulary_sizes(
+            train_files=[train_file],
+            heldout_texts=heldout,
+            language=language,
+            vocab_sizes=sizes,
+            model_types=types,
+            max_train_lines=profile.get("sweep_max_train_lines"),
+        )
+        logger.info("Sweep finished in %.1fs", time.monotonic() - started)
+
+        for result in sweep_results:
+            if "error" in result:
+                logger.warning("  %-8s vocab=%-6s FAILED: %s",
+                               result["model_type"], result["vocab_size"], result["error"])
+            else:
+                logger.info(
+                    "  %-8s vocab=%-6s fertility=%.3f unk=%.2e byte_fb=%.4f%% chars/tok=%.2f",
+                    result["model_type"], result["vocab_size"], result["fertility"],
+                    result["unk_rate"], 100 * result["byte_fallback_rate"], result["chars_per_token"],
+                )
+
+        best = select_best_config(sweep_results)
+        if best is None:
+            logger.warning("No viable sweep candidate; keeping configured tokenizer settings")
+        else:
+            logger.info(
+                "Sweep winner: %s vocab=%d (fertility=%.3f)",
+                best["model_type"], best["vocab_size"], best["fertility"],
+            )
+            if args.use_sweep_best:
+                chosen_vocab = best.get("requested_vocab_size", best["vocab_size"])
+                chosen_type = best["model_type"]
+                logger.info("Using sweep winner for the final tokenizer")
+
+        write_json(stats_dir / "tokenizer_sweep.json", {
+            "language": language,
+            "results": sweep_results,
+            "selected": best,
+            "selection_rule": (
+                "Best held-out fertility subject to (a) unk_rate <= 1e-4 and (b) embedding "
+                "parameters <= 40% of the 25M Phase 2 budget at d_model=384; then step down "
+                "to any smaller vocabulary within 3% fertility. Fertility alone would always "
+                "select the largest candidate, since it falls monotonically with vocab size."
+            ),
+            "selection_parameters": {
+                "max_unk_rate": 1e-4,
+                "model_dim": 384,
+                "param_budget": 25_000_000,
+                "max_embedding_share": 0.40,
+                "fertility_tolerance": 0.03,
+            },
+        })
+
+    # --- stage 2: final training ----------------------------------------------
+    final_config = TokenizerConfig(
+        language=language,
+        model_type=chosen_type,
+        vocab_size=chosen_vocab,
+        character_coverage=tokenizer_cfg["character_coverage"],
+        byte_fallback=tokenizer_cfg["byte_fallback"],
+        split_digits=tokenizer_cfg["split_digits"],
+        normalization_rule_name=tokenizer_cfg["normalization_rule_name"],
+        seed=tokenizer_cfg["seed"],
+    )
+    logger.info("Training final tokenizer: %s, vocab=%d", final_config.model_type, final_config.vocab_size)
+    started = time.monotonic()
+    manifest = train_from_jsonl(
+        [train_file], final_config, tokenizer_dir, max_lines=profile.get("tokenizer_max_train_lines")
+    )
+    logger.info("Trained on %s lines in %.1fs -> %s",
+                f"{manifest['training_lines']:,}", time.monotonic() - started, manifest["model_file"])
+
+    # --- stage 3: evaluation ---------------------------------------------------
+    evaluator = TokenizerEvaluator(Path(manifest["model_file"]), language)
+    metrics = evaluator.evaluate(heldout)
+    piece_stats = evaluator.piece_statistics()
+    frequencies = evaluator.token_frequency(heldout)
+    examples = evaluator.examples(heldout, max_examples=12)
+
+    report = {
+        "language": language,
+        "language_name": config["language_name"],
+        "model": config["model"],
+        "training_manifest": manifest,
+        "heldout_documents": len(heldout),
+        "metrics": metrics.as_dict(),
+        "piece_statistics": piece_stats,
+        "token_frequency": frequencies,
+        "examples": examples,
+        "sweep_ran": bool(sweep_results),
+    }
+    write_json(stats_dir / "tokenizer_stats.json", report)
+
+    logger.info("--- Held-out tokenizer metrics (%s) ---", language)
+    logger.info("Vocabulary size:       %d", metrics.vocab_size)
+    logger.info("Fertility:             %.4f tokens/word", metrics.fertility)
+    logger.info("Unknown rate:          %.3e", metrics.unk_rate)
+    logger.info("Byte-fallback rate:    %.4f%%", 100 * metrics.byte_fallback_rate)
+    logger.info("Chars per token:       %.3f", metrics.chars_per_token)
+    logger.info("Bytes per token:       %.3f", metrics.bytes_per_token)
+    logger.info("Single-token words:    %.1f%%", 100 * metrics.single_token_word_rate)
+    logger.info("Vocab utilization:     %.1f%% of pieces seen in held-out text",
+                100 * frequencies.get("vocab_utilization", 0.0))
+    roundtrip_failures = sum(1 for ex in examples if not ex["roundtrip_ok"])
+    logger.info("Round-trip failures:   %d of %d examples", roundtrip_failures, len(examples))
+    logger.info("Wrote %s", stats_dir / "tokenizer_stats.json")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
