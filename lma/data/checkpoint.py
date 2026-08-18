@@ -146,6 +146,7 @@ class CheckpointManager:
             "kept_chars": state.kept_chars,
             "kept_words": state.kept_words,
             "train_chars": state.train_chars,
+            "chars_by_collection": state.chars_by_collection,
             "split_summary": state.split_summary,
             "corpus_stats_state": state.corpus_stats_state,
             "elapsed_seconds": state.elapsed_seconds,
@@ -223,6 +224,9 @@ class CheckpointManager:
             kept_chars=payload.get("kept_chars", 0),
             kept_words=payload.get("kept_words", 0),
             train_chars=payload.get("train_chars", 0),
+            # Absent from checkpoints written before per-collection budgets
+            # existed; an empty dict simply restarts the split accounting.
+            chars_by_collection=payload.get("chars_by_collection", {}),
             split_summary=payload.get("split_summary", {}),
             corpus_stats_state=payload.get("corpus_stats_state", {}),
             elapsed_seconds=payload.get("elapsed_seconds", 0.0),

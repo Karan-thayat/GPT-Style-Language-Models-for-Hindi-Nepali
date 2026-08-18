@@ -670,6 +670,44 @@ def test_checkpointing() -> None:
         check("truncates to checkpointed count", truncate_jsonl_to(jsonl, 2) == 2)
         check("dropped the torn trailing line", jsonl.read_text(encoding="utf-8").count("\n") == 2)
 
+    # Every field must survive the round trip, enumerated from the dataclass rather
+    # than listed by hand. `chars_by_collection` was once added to the dataclass but
+    # not to save(), so the per-collection budget silently reset on every resume -
+    # a hand-written list of fields could never have caught it.
+    import dataclasses
+
+    populated = IngestState(
+        language="hi",
+        profile="full",
+        seen=1234,
+        kept=1000,
+        rejected={"too_short_words": 12},
+        kept_chars=54321,
+        kept_words=9876,
+        train_chars=50000,
+        chars_by_collection={"downloaded": 40000, "manual": 10000},
+        source_positions={"src_a": 500},
+        completed_sources=["src_b"],
+        split_summary={"documents": {"train": 900}},
+        corpus_stats_state={"documents": 1000},
+        elapsed_seconds=12.5,
+        segments=3,
+    )
+    manager2 = CheckpointManager(Path(tmp) / "allfields", "hi")
+    manager2.save(populated)
+    loaded2 = manager2.load(expected_profile="full")
+    check("checkpoint reloads", loaded2 is not None)
+
+    if loaded2 is not None:
+        restored2, _ = loaded2
+        for field in dataclasses.fields(IngestState):
+            name = field.name
+            expected = getattr(populated, name)
+            actual = getattr(restored2, name)
+            check(f"every IngestState field round-trips: {name}",
+                  actual == expected,
+                  f"{expected!r} != {actual!r}")
+
 
 # --- byte-level BPE decoding ---------------------------------------------------
 
