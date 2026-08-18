@@ -79,6 +79,9 @@ class IngestState:
     kept_chars: int = 0
     kept_words: int = 0
     train_chars: int = 0
+    #: Characters kept per collection ("manual" / "downloaded"), so a resumed run
+    #: restores the budget split rather than restarting the ratio from zero.
+    chars_by_collection: dict = field(default_factory=dict)
     split_summary: dict = field(default_factory=dict)
     corpus_stats_state: dict = field(default_factory=dict)
     elapsed_seconds: float = 0.0

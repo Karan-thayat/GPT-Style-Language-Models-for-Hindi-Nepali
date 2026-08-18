@@ -11,11 +11,9 @@ sources:
   text_field: text
   collection: downloaded
   enabled: true
-  limit: 2000
-  notes: 'Hindi Wikipedia, kept enabled for register variety: IndicCorp is news and
-    web text, so encyclopedic prose broadens what Model H sees. Capped small because
-    the downloaded budget is shared - at ~1,240 words per article this contributes
-    ~2.5M words, leaving the rest for IndicCorp.'
+  notes: 'Hindi Wikipedia, kept for register variety: IndicCorp is news and web text,
+    so encyclopedic prose broadens what Model H sees. Uncapped, since the whole of
+    Hindi Wikipedia is small next to IndicCorp and the token budget bounds the run.'
 - source_id: sangraha_hi
   type: huggingface
   dataset: ai4bharat/sangraha
@@ -49,17 +47,15 @@ sources:
   enabled: true
   one_document_per_line: true
   min_line_chars: 200
-  limit: 20000
   notes: 'AI4Bharat IndicCorp Hindi, held locally as a 5.9 GB plain-text file: 1,121,202
-    documents, 480M raw words, one document per line. Measured keep rate 96.8% and
-    99.7% correctly identified as Hindi, so essentially all of it is usable - the
-    full file alone yields ~880M tokens, 176% of the target.
+    documents, 480M raw words, one document per line. Measured keep rate 96.8%, with
+    99.7% correctly identified as Hindi.
 
-    The `limit` is therefore NOT about data quality or availability. It exists to
-    hold manually collected text above the 20% floor the assignment requires: with
-    ~2.7M OCR''d words, downloaded text can be at most ~10.9M words. Raise this cap
-    in step with OCR collection - every additional book of ~2,860 pages supports roughly
-    3.8M more words of downloaded text.'
+    This is the volume source for the downloaded 80% of the corpus. The full file
+    yields ~880M tokens, about 220% of the 400M downloaded requirement, so roughly
+    45% of it is read before the token budget is met. No document cap is set: the
+    ingest is bounded by --target-tokens instead, which measures the actual budget
+    rather than guessing at it through a document count.'
 - source_id: manual_ocr_hi
   type: local
   collection: manual

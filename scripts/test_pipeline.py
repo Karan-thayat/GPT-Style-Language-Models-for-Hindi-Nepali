@@ -537,6 +537,73 @@ def test_ocr() -> None:
     check("rejects Latin-Extended mojibake", not usable, f"metrics={metrics}")
 
 
+# --- corpus statistics serialization -------------------------------------------
+
+def test_corpus_statistics_roundtrip() -> None:
+    """CorpusStatistics must survive a real state_dict/load_state_dict cycle.
+
+    This exercises the live object rather than a hand-built payload, because that
+    is precisely the gap that let a renamed field ship: `bengali_chars` became
+    `script_chars` for Devanagari support, two references in the serialization
+    methods were missed, and the AttributeError only surfaced at the first
+    checkpoint - 25,000 documents into a multi-hour run.
+    """
+    print("\n[corpus statistics serialization]")
+    from lma.stats.corpus_stats import CorpusStatistics
+
+    hindi = "भारत एक विशाल देश है और यहाँ हिन्दी बोली जाती है। लोग खेती करते हैं।"
+    nepali = "नेपाल एउटा सानो देश हो र यहाँ नेपाली भाषा बोलिन्छ। मानिसहरू खेती गर्छन्।"
+
+    original = CorpusStatistics(language="hi")
+    for index in range(50):
+        original.add(f"{hindi} दस्तावेज़ संख्या {index}।", "src_a", "downloaded")
+    for index in range(20):
+        original.add(f"{hindi} पुस्तक {index}।", "src_b", "manual")
+
+    # The round trip must not raise, and must not lose counters.
+    try:
+        payload = original.state_dict()
+        restored = CorpusStatistics(language="hi")
+        restored.load_state_dict(payload)
+        ok = True
+    except Exception as exc:  # noqa: BLE001 - reporting the failure is the point
+        ok = False
+        check("state_dict round-trips", False, f"{type(exc).__name__}: {exc}")
+
+    if ok:
+        check("state_dict round-trips", True)
+        for field in ("documents", "characters", "words", "script_chars",
+                      "latin_chars", "digit_chars"):
+            check(f"restores {field}",
+                  getattr(restored, field) == getattr(original, field),
+                  f"{getattr(original, field)} != {getattr(restored, field)}")
+        check("restores per-source counts",
+              dict(restored.words_by_source) == dict(original.words_by_source))
+        check("restores per-collection counts",
+              dict(restored.words_by_collection) == dict(original.words_by_collection))
+
+        # Continuing after a restore must accumulate, not reset.
+        before = restored.documents
+        restored.add(hindi, "src_a", "downloaded")
+        check("continues accumulating after restore", restored.documents == before + 1)
+
+        # as_dict must work on a restored object - it is what the report reads.
+        summary = restored.as_dict()
+        check("as_dict works after restore", summary["totals"]["documents"] > 0)
+        check("script ratio present after restore",
+              "script_char_ratio" in summary["script_composition"])
+
+    # Every language profile must serialize, not just the one under test.
+    for language, sample in (("hi", hindi), ("ne", nepali)):
+        stats = CorpusStatistics(language=language)
+        stats.add(sample, "src", "manual")
+        try:
+            CorpusStatistics(language=language).load_state_dict(stats.state_dict())
+            check(f"[{language}] statistics serialize", True)
+        except Exception as exc:  # noqa: BLE001
+            check(f"[{language}] statistics serialize", False, f"{type(exc).__name__}: {exc}")
+
+
 # --- checkpointing -------------------------------------------------------------
 
 def test_checkpointing() -> None:
@@ -674,6 +741,7 @@ def main() -> int:
     test_splits()
     test_source_manifests()
     test_ocr()
+    test_corpus_statistics_roundtrip()
     test_checkpointing()
     test_detokenize()
 

@@ -49,6 +49,13 @@ def parse_args() -> argparse.Namespace:
         help="Override the training-token target; ingest stops once reached",
     )
     parser.add_argument(
+        "--manual-fraction",
+        type=float,
+        default=0.20,
+        help="Required share of training tokens from manual collection. The downloaded "
+             "budget is the remainder, so 0.20 caps downloaded text at 80%% of the target.",
+    )
+    parser.add_argument(
         "--chars-per-token",
         type=float,
         default=4.0,
@@ -110,11 +117,30 @@ def main() -> int:
     # The tokenizer does not exist yet, so the token target is enforced through a
     # character budget using an estimated compression rate. The achieved token
     # count is measured exactly later, in scripts/tokenize_corpus.py.
+    # Separate budgets per collection. A single shared budget cannot express the
+    # assignment's coupled requirements - whichever source streams first would
+    # consume it and the manual ratio would fall out arbitrarily.
+    #
+    # Manual text is deliberately uncapped: it is the scarce side, so taking all of
+    # it can only improve the ratio, and capping it would throw away the very data
+    # the requirement is about.
     char_budget = int(target_tokens * args.chars_per_token) if target_tokens else None
+    downloaded_budget = (
+        int(char_budget * (1.0 - args.manual_fraction)) if char_budget else None
+    )
     if char_budget:
         logger.info(
-            "Target %s train tokens -> character budget %s (at %.2f chars/token)",
+            "Target %s train tokens -> %s chars total (at %.2f chars/token)",
             f"{target_tokens:,}", f"{char_budget:,}", args.chars_per_token,
+        )
+        logger.info(
+            "  downloaded budget: %s chars (%.0f%% of target = %s tokens)",
+            f"{downloaded_budget:,}", 100 * (1 - args.manual_fraction),
+            f"{int(target_tokens * (1 - args.manual_fraction)):,}",
+        )
+        logger.info(
+            "  manual: uncapped, target %s tokens (%.0f%%) - the scarce side, so all of it is taken",
+            f"{int(target_tokens * args.manual_fraction):,}", 100 * args.manual_fraction,
         )
 
     # --- checkpoint setup -----------------------------------------------------
@@ -167,6 +193,9 @@ def main() -> int:
     previous_elapsed = state.elapsed_seconds
     started = time.monotonic()
     train_chars = state.train_chars
+    # Per-collection character counts, so the budget and the reported ratio both
+    # reflect what each side actually contributed.
+    chars_by_collection = dict(state.chars_by_collection)
     budget_reached = False
     checkpoint_every = args.checkpoint_every
 
@@ -178,6 +207,7 @@ def main() -> int:
         state.kept_chars = cleaner.stats.kept_chars
         state.kept_words = cleaner.stats.kept_words
         state.train_chars = train_chars
+        state.chars_by_collection = dict(chars_by_collection)
         state.split_summary = writer_summary
         state.corpus_stats_state = statistics.state_dict()
         state.elapsed_seconds = previous_elapsed + (time.monotonic() - started)
@@ -211,8 +241,19 @@ def main() -> int:
 
                 if split == "train":
                     train_chars += len(kept)
-                    if char_budget is not None and train_chars >= char_budget:
-                        logger.info("Character budget reached (%s train chars); stopping ingest", f"{train_chars:,}")
+                    chars_by_collection[document.collection] = (
+                        chars_by_collection.get(document.collection, 0) + len(kept)
+                    )
+                    downloaded_chars = chars_by_collection.get("downloaded", 0)
+                    # Only downloaded text is capped. Manual text keeps flowing, so
+                    # a source that yields more of it than expected improves the
+                    # ratio instead of being cut off.
+                    if downloaded_budget is not None and downloaded_chars >= downloaded_budget:
+                        logger.info(
+                            "Downloaded budget reached (%s downloaded chars, %s manual); stopping ingest",
+                            f"{downloaded_chars:,}",
+                            f"{chars_by_collection.get('manual', 0):,}",
+                        )
                         budget_reached = True
                         break
 
@@ -227,7 +268,13 @@ def main() -> int:
 
                 if cleaner.stats.seen % args.report_every == 0:
                     rate = (cleaner.stats.seen - state.seen) / max(1e-9, time.monotonic() - started)
-                    pct = f" ({100 * train_chars / char_budget:.1f}% of budget)" if char_budget else ""
+                    if downloaded_budget:
+                        dl = chars_by_collection.get("downloaded", 0)
+                        man = chars_by_collection.get("manual", 0)
+                        share = 100 * man / max(1, dl + man)
+                        pct = f" (dl {100 * dl / downloaded_budget:.1f}% of budget, manual {share:.1f}%)"
+                    else:
+                        pct = ""
                     logger.info(
                         "seen=%s kept=%s (%.1f%%) train_chars=%s%s %.0f docs/s",
                         f"{cleaner.stats.seen:,}", f"{cleaner.stats.kept:,}",

@@ -146,7 +146,7 @@ class CorpusStatistics:
             "characters": self.characters,
             "words": self.words,
             "sentences": self.sentences,
-            "bengali_chars": self.bengali_chars,
+            "script_chars": self.script_chars,
             "latin_chars": self.latin_chars,
             "digit_chars": self.digit_chars,
             "whitespace_chars": self.whitespace_chars,
@@ -178,7 +178,9 @@ class CorpusStatistics:
         self.characters = payload.get("characters", 0)
         self.words = payload.get("words", 0)
         self.sentences = payload.get("sentences", 0)
-        self.bengali_chars = payload.get("bengali_chars", 0)
+        # Accept the old key too, so a checkpoint written before the field was
+        # renamed for Devanagari support still resumes rather than restarting.
+        self.script_chars = payload.get("script_chars", payload.get("bengali_chars", 0))
         self.latin_chars = payload.get("latin_chars", 0)
         self.digit_chars = payload.get("digit_chars", 0)
         self.whitespace_chars = payload.get("whitespace_chars", 0)
