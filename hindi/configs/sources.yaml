@@ -10,10 +10,9 @@ sources:
   split: train
   text_field: text
   collection: downloaded
-  enabled: true
-  notes: 'Hindi Wikipedia, kept for register variety: IndicCorp is news and web text,
-    so encyclopedic prose broadens what Model H sees. Uncapped, since the whole of
-    Hindi Wikipedia is small next to IndicCorp and the token budget bounds the run.'
+  enabled: false
+  notes: DISABLED in favour of the local wikipedia_dump_hi below, which is the same
+    content already on disk. Re-enable only if the local dump is removed.
 - source_id: sangraha_hi
   type: huggingface
   dataset: ai4bharat/sangraha
@@ -56,6 +55,133 @@ sources:
     45% of it is read before the token budget is met. No document cap is set: the
     ingest is bounded by --target-tokens instead, which measures the actual budget
     rather than guessing at it through a document count.'
+- source_id: manual_scraped_news_hi
+  type: local
+  path: hindi/data/raw/scraped
+  glob: '**/*.txt'
+  collection: manual
+  enabled: true
+  one_document_per_line: true
+  min_line_chars: 200
+  notes: 'Hindi news scraped by the student: 9.07M words across two files. This is
+    manually collected text under the assignment''s definition (scraping pages you
+    gather yourself), and it is currently the single largest contributor to the >=20%
+    manual requirement - larger than all the OCR''d books combined. One document per
+    line, streamed rather than loaded.'
+- source_id: wikipedia_dump_hi
+  type: local
+  path: hindi/data/raw/downloaded
+  glob: '**/*.txt'
+  collection: downloaded
+  enabled: true
+  one_document_per_line: true
+  min_line_chars: 200
+  notes: 'Local Hindi Wikipedia dump, 45.6M words. Counted as DOWNLOADED, not manual:
+    it is a public corpus obtained wholesale, which is exactly what the assignment
+    contrasts manual collection against. Kept because encyclopedic prose broadens
+    the register beyond IndicCorp''s news and web text, and reading it locally avoids
+    re-downloading the same content from the hub - so the hub Wikipedia source is
+    disabled in its favour.'
+- source_id: manual_news_bhaskar_hi
+  type: scrape
+  collection: manual
+  enabled: true
+  start_urls:
+  - https://www.bhaskar.com/
+  allow_patterns:
+  - bhaskar\.com/
+  deny_patterns:
+  - /photo
+  - /video
+  - /tag/
+  - /author/
+  - \?
+  - /live-
+  content_selector: null
+  max_pages: 20000
+  max_depth: 6
+  delay_seconds: 1.0
+  cache_dir: hindi/data/raw/scrape_cache
+  notes: 'News crawl of bhaskar. Counted as manual collection: the assignment names
+    ''scraping + cleaning pages you gather yourself'' as manual. Pages are cached,
+    so re-runs replay instantly and only new URLs pay the 1 req/s rate limit. Check
+    this site''s terms of use yourself - the crawler honours robots.txt and rate-limits,
+    but permission to collect is the student''s responsibility.'
+- source_id: manual_news_amarujala_hi
+  type: scrape
+  collection: manual
+  enabled: true
+  start_urls:
+  - https://www.amarujala.com/
+  allow_patterns:
+  - amarujala\.com/
+  deny_patterns:
+  - /photo
+  - /video
+  - /tag/
+  - /author/
+  - \?
+  - /live-
+  content_selector: null
+  max_pages: 20000
+  max_depth: 6
+  delay_seconds: 1.0
+  cache_dir: hindi/data/raw/scrape_cache
+  notes: 'News crawl of amarujala. Counted as manual collection: the assignment names
+    ''scraping + cleaning pages you gather yourself'' as manual. Pages are cached,
+    so re-runs replay instantly and only new URLs pay the 1 req/s rate limit. Check
+    this site''s terms of use yourself - the crawler honours robots.txt and rate-limits,
+    but permission to collect is the student''s responsibility.'
+- source_id: manual_news_jagran_hi
+  type: scrape
+  collection: manual
+  enabled: true
+  start_urls:
+  - https://www.jagran.com/
+  allow_patterns:
+  - jagran\.com/
+  deny_patterns:
+  - /photo
+  - /video
+  - /tag/
+  - /author/
+  - \?
+  - /live-
+  content_selector: null
+  max_pages: 20000
+  max_depth: 6
+  delay_seconds: 1.0
+  cache_dir: hindi/data/raw/scrape_cache
+  notes: 'News crawl of jagran. Counted as manual collection: the assignment names
+    ''scraping + cleaning pages you gather yourself'' as manual. Pages are cached,
+    so re-runs replay instantly and only new URLs pay the 1 req/s rate limit. Check
+    this site''s terms of use yourself - the crawler honours robots.txt and rate-limits,
+    but permission to collect is the student''s responsibility.'
+- source_id: manual_news_navbharat_hi
+  type: scrape
+  collection: manual
+  enabled: true
+  start_urls:
+  - https://navbharattimes.indiatimes.com/
+  allow_patterns:
+  - navbharattimes\.indiatimes\.com/
+  deny_patterns:
+  - /photo
+  - /video
+  - /tag/
+  - /author/
+  - \?
+  - /live-
+  content_selector: null
+  max_pages: 20000
+  max_depth: 6
+  delay_seconds: 1.0
+  cache_dir: hindi/data/raw/scrape_cache
+  notes: 'News crawl of navbharat. Counted as manual collection: the assignment names
+    ''scraping + cleaning pages you gather yourself'' as manual. Pages are cached,
+    so re-runs replay instantly and only new URLs pay the 1 req/s rate limit. Check
+    this site''s terms of use yourself - the crawler honours robots.txt and rate-limits,
+    but permission to collect is the student''s responsibility.'
 - source_id: manual_ocr_hi
   type: local
   collection: manual

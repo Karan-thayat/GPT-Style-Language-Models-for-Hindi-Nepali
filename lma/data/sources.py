@@ -127,6 +127,8 @@ class LocalFileSource:
 
     Supported layouts:
 
+    * ``.parquet`` - read in row-group batches through pyarrow, taking only the
+      text column. This is the streaming path for multi-gigabyte corpus files.
     * ``.jsonl`` / ``.jsonl.gz`` - one JSON object per line with a text field.
     * ``.txt`` - the whole file is one document by default. Set
       `split_on_blank_lines` for blank-line-separated blocks (typical of OCR page
@@ -172,13 +174,29 @@ class LocalFileSource:
         if not root.exists():
             return
         for candidate in sorted(root.glob(self.glob)):
-            if candidate.is_file() and candidate.suffix in {".txt", ".jsonl", ".gz", ".json"}:
+            if candidate.is_file() and candidate.suffix in {".txt", ".jsonl", ".gz", ".json", ".parquet"}:
                 yield candidate
 
     def stream(self, limit: int | None = None) -> Iterator[Document]:
         """Yield documents from every matching local file."""
         emitted = 0
         for file_path in self._iter_paths():
+            # Parquet is read through pyarrow in row-group batches rather than
+            # opened as text: a multi-gigabyte corpus file must never be
+            # materialized, and only the text column is worth decoding.
+            if file_path.suffix == ".parquet":
+                import pyarrow.parquet as pq
+
+                reader = pq.ParquetFile(file_path)
+                for batch in reader.iter_batches(batch_size=256, columns=[self.text_field]):
+                    for value in batch.column(0).to_pylist():
+                        if isinstance(value, str) and len(value.strip()) >= self.min_line_chars:
+                            yield Document(value, self.source_id, self.collection, str(file_path))
+                            emitted += 1
+                            if limit is not None and emitted >= limit:
+                                return
+                continue
+
             opener = gzip.open if file_path.suffix == ".gz" else open
             with opener(file_path, "rt", encoding="utf-8", errors="replace") as handle:  # type: ignore[operator]
                 if file_path.name.endswith((".jsonl", ".jsonl.gz", ".json.gz")) or file_path.suffix == ".jsonl":
