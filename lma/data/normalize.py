@@ -68,15 +68,40 @@ BENGALI_DIGITS = "০১২৩৪৫৬৭৮৯"
 
 #: Stripped everywhere. ZWNJ (U+200C) and ZWJ (U+200D) are deliberately absent -
 #: they control conjunct formation and are orthographically meaningful.
-_INVISIBLES = (
-    "­"  # soft hyphen
-    "​"  # zero width space
-    "‎‏"  # LTR/RTL marks
-    "  "  # line/paragraph separators
-    "‪‫‬‭‮"  # bidi embedding
-    "⁠"  # word joiner
-    "﻿"  # BOM / zero width no-break space
+#: Invisible characters stripped everywhere, given as explicit code points.
+#:
+#: Written as escapes rather than as literal characters on purpose. An earlier
+#: version listed them literally, and the entry intended to be U+2028/U+2029
+#: (LINE/PARAGRAPH SEPARATOR) was silently replaced by two ordinary U+0020
+#: spaces during an edit - which made the normalizer delete every space in every
+#: document, fusing whole paragraphs into a single token. Escapes cannot be
+#: corrupted that way, and the check below fails loudly if one ever is.
+#:
+#: ZWNJ (U+200C) and ZWJ (U+200D) are deliberately absent: they control conjunct
+#: formation in Indic scripts and are orthographically meaningful.
+_INVISIBLE_CODEPOINTS = (
+    0x00AD,  # soft hyphen
+    0x200B,  # zero width space
+    0x200E,  # left-to-right mark
+    0x200F,  # right-to-left mark
+    0x2028,  # line separator
+    0x2029,  # paragraph separator
+    0x202A,  # left-to-right embedding
+    0x202B,  # right-to-left embedding
+    0x202C,  # pop directional formatting
+    0x202D,  # left-to-right override
+    0x202E,  # right-to-left override
+    0x2060,  # word joiner
+    0xFEFF,  # BOM / zero width no-break space
 )
+
+#: Guard: whitespace that separates words must never be stripped. This is the
+#: assertion that would have caught the bug described above at import time.
+assert 0x0020 not in _INVISIBLE_CODEPOINTS, "SPACE must never be treated as invisible"
+assert 0x0009 not in _INVISIBLE_CODEPOINTS, "TAB must never be treated as invisible"
+assert 0x000A not in _INVISIBLE_CODEPOINTS, "NEWLINE must never be treated as invisible"
+
+_INVISIBLES = "".join(chr(cp) for cp in _INVISIBLE_CODEPOINTS)
 
 # --- Per-script canonical sequences --------------------------------------------
 

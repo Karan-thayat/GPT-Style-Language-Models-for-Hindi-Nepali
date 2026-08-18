@@ -21,12 +21,12 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
 
 from lma.data.clean import CleanerConfig, DocumentCleaner, MinHashDeduplicator
-from lma.data.language_id import BengaliAssameseIdentifier
+from lma.data.language_id import IndicLanguageIdentifier
 from lma.data.normalize import (
     ASSAMESE_RA,
     ASSAMESE_WA,
     BENGALI_RA,
-    BengaliScriptNormalizer,
+    IndicNormalizer,
     get_profile,
 )
 from lma.data.splits import SplitAssigner, SplitConfig
@@ -51,8 +51,8 @@ def check(name: str, condition: bool, detail: str = "") -> None:
 def test_normalization() -> None:
     """Normalization must be idempotent and must respect the language profile."""
     print("\n[normalization]")
-    bn = BengaliScriptNormalizer(get_profile("bn"))
-    asm = BengaliScriptNormalizer(get_profile("as"))
+    bn = IndicNormalizer(get_profile("bn"))
+    asm = IndicNormalizer(get_profile("as"))
 
     # The decisive property: Assamese letters survive in Assamese, fold in Bengali.
     assamese_text = f"{ASSAMESE_RA}াম {ASSAMESE_WA}াৰি আৰু অসমীয়া ভাষা"
@@ -117,12 +117,81 @@ def test_normalization() -> None:
     check("empty input safe", bn.normalize("") == "")
 
 
+# --- Devanagari normalization (Hindi and Nepali) -------------------------------
+
+def test_devanagari_normalization() -> None:
+    """Devanagari normalization must unify nukta spellings and preserve separators.
+
+    Two failure modes are covered, both of which corrupt a corpus silently:
+
+    * Dropping a nukta merges distinct words - ज़रा ("a little") becomes जरा
+      ("aged"). This is the classic Indic-normalizer bug.
+    * Deleting a word separator fuses whole paragraphs into one token. Nothing
+      errors; documents merely look short and language identification fails on
+      words it can no longer see.
+    """
+    print("\n[devanagari normalization]")
+    hi = IndicNormalizer(get_profile("hi"))
+    ne = IndicNormalizer(get_profile("ne"))
+
+    # Pre-composed and decomposed nukta letters must normalize to one spelling.
+    for composed, decomposed, label in (
+        ("\u095b", "\u091c\u093c", "ज़ (za)"),
+        ("\u0958", "\u0915\u093c", "क़ (qa)"),
+        ("\u095e", "\u092b\u093c", "फ़ (fa)"),
+        ("\u095c", "\u0921\u093c", "ड़ (rra)"),
+    ):
+        check(f"nukta unified: {label}",
+              hi.normalize(composed) == hi.normalize(decomposed),
+              f"{hi.normalize(composed)!r} != {hi.normalize(decomposed)!r}")
+
+    # The nukta itself must survive: the distinction it marks is lexical.
+    check("nukta preserved (ज़रा stays distinct from जरा)",
+          hi.normalize("\u095c\u0930\u093e") != hi.normalize("\u0921\u0930\u093e"),
+          "the nukta was dropped, merging two different words")
+
+    # Regression: word separators must survive. A literal U+0020 once crept into
+    # the invisible-character table, so every space was deleted.
+    spaced = "भूगोल दुई शब्द भू अनि गोल बाट मिलेर बनेको छ, अर्थात गोलो भूमि।"
+    for normalizer, tag in ((hi, "hi"), (ne, "ne")):
+        out = normalizer.normalize(spaced)
+        check(f"[{tag}] spaces survive normalization",
+              len(out.split()) == len(spaced.split()),
+              f"{len(spaced.split())} words in, {len(out.split())} out")
+
+    check("newlines survive normalization",
+          hi.normalize("पहिलो लाइन\nदोस्रो लाइन").count("\n") == 1,
+          "line structure was destroyed")
+    check("tab-separated words stay separate",
+          len(hi.normalize("एक\tदुई").split()) == 2,
+          "tab-separated words were fused")
+
+    # Idempotence: normalizing twice must equal normalizing once.
+    for sample in ["ज़रा ठहरिए।", "क़िताब पढ़ें", "१२३ रुपये", "क़ख़ग़ज़ड़ढ़फ़य़",
+                   "नेपाल एउटा सानो देश हो।"]:
+        once = hi.normalize(sample)
+        check(f"idempotent {sample[:14]!r}", once == hi.normalize(once))
+
+    out = hi.normalize("भारत एक विशाल देश है")
+    check("output is NFC", out == unicodedata.normalize("NFC", out))
+    check("Devanagari digits -> ASCII", hi.normalize("१२३") == "123",
+          f"got {hi.normalize('१२३')!r}")
+    check("danda preserved", "।" in hi.normalize("यह वाक्य है।"))
+    check("empty input safe", hi.normalize("") == "")
+
+    # Hindi and Nepali share the script, so their normalizers must agree exactly -
+    # the languages differ in grammar and vocabulary, not orthographic convention.
+    sample = "नेपाल र भारत दुवै देशमा देवनागरी लिपि प्रयोग हुन्छ।"
+    check("Hindi and Nepali normalize Devanagari identically",
+          hi.normalize(sample) == ne.normalize(sample))
+
+
 # --- language identification ---------------------------------------------------
 
 def test_language_id() -> None:
     """The identifier must separate genuine Assamese from Bengali."""
     print("\n[language identification]")
-    identifier = BengaliAssameseIdentifier()
+    identifier = IndicLanguageIdentifier()
 
     assamese = (
         "অসম ভাৰতৰ উত্তৰ-পূৱ অঞ্চলত অৱস্থিত এখন ৰাজ্য। অসমীয়া ভাষা ইয়াৰ ৰাজ্যিক ভাষা "
@@ -598,6 +667,7 @@ def main() -> int:
     print("Phase 1 component self-tests")
     print("=" * 68)
     test_normalization()
+    test_devanagari_normalization()
     test_language_id()
     test_dedup()
     test_cleaner()
