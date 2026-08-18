@@ -33,12 +33,12 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
 
-from lma.data.language_id import BengaliAssameseIdentifier
+from lma.data.language_id import IndicLanguageIdentifier
 from lma.data.splits import SPLIT_NAMES, iter_jsonl
 from lma.utils.logging_utils import setup_logging, write_json
 
 #: Language code -> (directory, human-readable model name).
-LANGUAGES = {"bn": ("bengali", "Model H (Bengali)"), "as": ("assamese", "Model L (Assamese)")}
+LANGUAGES = {"hi": ("hindi", "Model H (Hindi)"), "as": ("assamese", "Model L (Assamese)")}
 
 _FAILURES: list[str] = []
 
@@ -97,9 +97,9 @@ def main() -> int:
         )
         report["corpus"][language] = {s: len(v) for s, v in splits.items()}
 
-    bn_all = set().union(*per_language["bn"].values())
+    hi_all = set().union(*per_language["hi"].values())
     as_all = set().union(*per_language["as"].values())
-    shared = bn_all & as_all
+    shared = hi_all & as_all
     record(
         logger,
         "corpora share no documents",
@@ -150,26 +150,26 @@ def main() -> int:
 
     if len(models) == 2:
         record(logger, "tokenizer model files are distinct paths",
-               models["bn"].resolve() != models["as"].resolve(), "same file used for both")
+               models["hi"].resolve() != models["as"].resolve(), "same file used for both")
         checksums = {lang: report["tokenizers"][lang]["model_sha256"] for lang in models}
         record(logger, "tokenizer models differ in content",
-               checksums["bn"] != checksums["as"], "identical checksums - one is a copy")
+               checksums["hi"] != checksums["as"], "identical checksums - one is a copy")
 
     if len(vocabs) == 2:
-        bn_pieces = {line.split("\t")[0] for line in vocabs["bn"].read_text(encoding="utf-8").splitlines() if line}
+        hi_pieces = {line.split("\t")[0] for line in vocabs["hi"].read_text(encoding="utf-8").splitlines() if line}
         as_pieces = {line.split("\t")[0] for line in vocabs["as"].read_text(encoding="utf-8").splitlines() if line}
-        record(logger, "vocabularies are not identical", bn_pieces != as_pieces,
+        record(logger, "vocabularies are not identical", hi_pieces != as_pieces,
                "the two vocabularies contain exactly the same pieces")
 
-        # Some overlap is expected and correct - the languages share a script, so
-        # common characters and shared words will appear in both. What would be
-        # wrong is near-total overlap, which would mean one vocabulary was reused.
-        overlap = len(bn_pieces & as_pieces)
-        union = len(bn_pieces | as_pieces)
+        # Hindi and Assamese use different scripts, so vocabulary overlap should be
+        # near zero - only punctuation, digits, and any incidental Latin. A high
+        # Jaccard here would mean one vocabulary was copied from the other.
+        overlap = len(hi_pieces & as_pieces)
+        union = len(hi_pieces | as_pieces)
         jaccard = overlap / union if union else 0.0
         logger.info(
             "  Vocabulary piece overlap: %s pieces, Jaccard %.3f "
-            "(overlap is expected for a shared script; ~1.0 would indicate reuse)",
+            "(near zero expected - the scripts differ; a high value would indicate reuse)",
             f"{overlap:,}", jaccard,
         )
         record(logger, "vocabularies are not near-duplicates", jaccard < 0.95, f"Jaccard {jaccard:.3f}")
@@ -177,12 +177,12 @@ def main() -> int:
 
     # --- language purity -----------------------------------------------------
     logger.info("\n[4] Language purity of each corpus (sampled)")
-    identifier = BengaliAssameseIdentifier()
+    identifier = IndicLanguageIdentifier()
     for language, (directory, label) in LANGUAGES.items():
         path = REPO_ROOT / directory / "data/processed" / f"{language}_train.jsonl"
         if not path.exists():
             continue
-        counts = {"as": 0, "bn": 0, "unknown": 0}
+        counts = {"hi": 0, "as": 0, "bn": 0, "unknown": 0}
         for index, row in enumerate(iter_jsonl(path)):
             if index >= 2000:
                 break

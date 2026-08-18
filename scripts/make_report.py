@@ -24,7 +24,7 @@ from lma.stats import plots
 from lma.utils.logging_utils import read_json, setup_logging
 
 #: Language code -> directory, in report order (higher-resource first).
-LANGUAGES = {"bn": "bengali", "as": "assamese"}
+LANGUAGES = {"hi": "hindi", "as": "assamese"}
 
 
 def parse_args() -> argparse.Namespace:
@@ -82,7 +82,7 @@ def section_independence(validation: dict | None) -> str:
         "|---|---|",
         f"| Documents shared between the two corpora | {fmt(checks.get('shared_documents'))} |",
     ]
-    for language, label in (("bn", "Bengali"), ("as", "Assamese")):
+    for language, label in (("hi", "Hindi"), ("as", "Assamese")):
         for held in ("validation", "test"):
             key = f"{language}_train_{held}_overlap"
             if key in checks:
@@ -90,9 +90,9 @@ def section_independence(validation: dict | None) -> str:
     if "vocab_jaccard" in checks:
         rows.append(
             f"| Vocabulary piece overlap (Jaccard) | {checks['vocab_jaccard']:.3f} "
-            "(overlap expected — shared script; ≈1.0 would indicate reuse) |"
+            "(near zero expected — the scripts differ; a high value would indicate reuse) |"
         )
-    for language, label in (("bn", "Bengali"), ("as", "Assamese")):
+    for language, label in (("hi", "Hindi"), ("as", "Assamese")):
         key = f"{language}_purity"
         if key in checks:
             rows.append(f"| {label} corpus identified as {language} | {100 * checks[key]:.1f}% |")
@@ -202,7 +202,7 @@ def build_figures(artifacts: dict[str, dict], figures_dir: Path, logger) -> list
 def section_dataset_table(artifacts: dict[str, dict]) -> str:
     """Render the headline dataset-statistics comparison table."""
     rows = [
-        "| Statistic | Bengali (Model H) | Assamese (Model L) |",
+        "| Statistic | Hindi (Model H) | Assamese (Model L) |",
         "|---|---:|---:|",
     ]
 
@@ -235,14 +235,14 @@ def section_dataset_table(artifacts: dict[str, dict]) -> str:
     ]
 
     for label, getter in specs:
-        rows.append(f"| {label} | {cell('bn', getter)} | {cell('as', getter)} |")
+        rows.append(f"| {label} | {cell('hi', getter)} | {cell('as', getter)} |")
     return "\n".join(rows)
 
 
 def section_tokenizer_table(artifacts: dict[str, dict]) -> str:
     """Render the held-out tokenizer-metrics comparison table."""
     rows = [
-        "| Tokenizer metric (held-out) | Bengali (Model H) | Assamese (Model L) |",
+        "| Tokenizer metric (held-out) | Hindi (Model H) | Assamese (Model L) |",
         "|---|---:|---:|",
     ]
 
@@ -273,7 +273,7 @@ def section_tokenizer_table(artifacts: dict[str, dict]) -> str:
     ]
 
     for label, getter in specs:
-        rows.append(f"| {label} | {cell('bn', getter)} | {cell('as', getter)} |")
+        rows.append(f"| {label} | {cell('hi', getter)} | {cell('as', getter)} |")
     return "\n".join(rows)
 
 
@@ -284,7 +284,7 @@ def section_sweep_table(artifacts: dict[str, dict]) -> str:
         sweep = entry.get("sweep")
         if not sweep:
             continue
-        name = "Bengali (Model H)" if language == "bn" else "Assamese (Model L)"
+        name = "Hindi (Model H)" if language == "hi" else "Assamese (Model L)"
         lines = [
             f"**{name}**",
             "",
@@ -320,7 +320,7 @@ def section_examples(artifacts: dict[str, dict]) -> str:
         tokenizer = entry.get("tokenizer")
         if not tokenizer or not tokenizer.get("examples"):
             continue
-        name = "Bengali (Model H)" if language == "bn" else "Assamese (Model L)"
+        name = "Hindi (Model H)" if language == "hi" else "Assamese (Model L)"
         lines = [f"**{name}**", ""]
         for example in tokenizer["examples"][:5]:
             text = example["text"][:150]
@@ -347,13 +347,13 @@ def section_top_tokens(artifacts: dict[str, dict], top_k: int = 20) -> str:
     if not columns:
         return "_Tokenizer has not been trained._"
 
-    rows = ["| Rank | Bengali (Model H) | Assamese (Model L) |", "|---:|---|---|"]
+    rows = ["| Rank | Hindi (Model H) | Assamese (Model L) |", "|---:|---|---|"]
     depth = max(len(v) for v in columns.values())
     for index in range(depth):
-        bn = columns.get("bn", [])
+        hi = columns.get("hi", [])
         asm = columns.get("as", [])
         rows.append(
-            f"| {index + 1} | {bn[index] if index < len(bn) else '—'} | {asm[index] if index < len(asm) else '—'} |"
+            f"| {index + 1} | {hi[index] if index < len(hi) else '—'} | {asm[index] if index < len(asm) else '—'} |"
         )
     return "\n".join(rows)
 
@@ -365,7 +365,7 @@ def section_sources(artifacts: dict[str, dict]) -> str:
         corpus = entry.get("corpus")
         if not corpus:
             continue
-        name = "Bengali (Model H)" if language == "bn" else "Assamese (Model L)"
+        name = "Hindi (Model H)" if language == "hi" else "Assamese (Model L)"
         words = corpus["by_source"]["words"]
         docs = corpus["by_source"]["documents"]
         total_words = sum(words.values()) or 1
@@ -396,16 +396,16 @@ def section_cleaning(artifacts: dict[str, dict]) -> str:
     if not reasons:
         return "_No cleaning statistics found._"
 
-    rows = ["| Rejection reason | Bengali (Model H) | Assamese (Model L) |", "|---|---:|---:|"]
+    rows = ["| Rejection reason | Hindi (Model H) | Assamese (Model L) |", "|---|---:|---:|"]
     for reason in reasons:
-        bn = artifacts.get("bn", {}).get("cleaning", {}).get("rejected", {}).get(reason, 0)
+        hi = artifacts.get("hi", {}).get("cleaning", {}).get("rejected", {}).get(reason, 0)
         asm = artifacts.get("as", {}).get("cleaning", {}).get("rejected", {}).get(reason, 0)
-        rows.append(f"| `{reason}` | {fmt(bn)} | {fmt(asm)} |")
+        rows.append(f"| `{reason}` | {fmt(hi)} | {fmt(asm)} |")
 
     for label, key in (("**Total kept**", "kept"), ("**Total seen**", "seen")):
-        bn = artifacts.get("bn", {}).get("cleaning", {}).get(key, 0)
+        hi = artifacts.get("hi", {}).get("cleaning", {}).get(key, 0)
         asm = artifacts.get("as", {}).get("cleaning", {}).get(key, 0)
-        rows.append(f"| {label} | {fmt(bn)} | {fmt(asm)} |")
+        rows.append(f"| {label} | {fmt(hi)} | {fmt(asm)} |")
     return "\n".join(rows)
 
 

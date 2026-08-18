@@ -1,30 +1,28 @@
-"""Discriminating Assamese from Bengali text.
+"""Verifying that a document is written in the language we think it is.
 
-The problem
------------
-Both languages are written in the same Unicode block, so a script detector
-cannot separate them, and off-the-shelf language identifiers routinely label
-Assamese as Bengali. Because Phase 1 forbids sharing documents between the two
-corpora, we need a positive test that a document belongs to the language we
-think it does - otherwise Bengali text leaks into the Assamese corpus (the
-likelier direction, since Bengali text is far more abundant online).
+Two very different problems live here, because the project's two languages sit in
+different Unicode blocks while the harder historical case does not.
 
-The approach
-------------
-A lightweight, transparent scorer over orthographic evidence rather than a
-trained classifier, so its decisions can be explained during evaluation:
+**Hindi vs Assamese - easy.** Devanagari (U+0900-U+097F) and Bengali-Assamese
+(U+0980-U+09FF) share no characters, so a script-share test separates them
+completely. Cross-contamination between Model H and Model L is therefore
+detectable with certainty rather than inference.
 
-1. **Exclusive letters.** ``ৰ`` (U+09F0) and ``ৱ`` (U+09F1) occur in Assamese
-   and essentially never in correct Bengali. Their Bengali counterparts ``র``
-   and ``ব`` occur in both, but Assamese uses ``ৰ`` where Bengali uses ``র``,
-   so the *ratio* between the two is strongly diagnostic.
-2. **Function-word evidence.** Short grammatical words differ between the
-   languages and are frequent enough to show up in any real document
-   (e.g. Assamese ``আৰু``/``হৈছে`` vs Bengali ``এবং``/``হয়েছে``).
+**Bengali vs Assamese - hard.** These share one script, so a script test cannot
+tell them apart and general-purpose language identifiers routinely label Assamese
+as Bengali. That case is still handled here, because Assamese corpora are
+frequently polluted with Bengali text and the filter is what keeps Model L's
+corpus honest. It relies on orthographic evidence:
 
-Scores are per-token-rate based, so document length does not bias the verdict.
-A document is accepted for a language only when that language wins by a margin,
-which means ambiguous short documents are rejected rather than guessed at.
+1. **Exclusive letters** - ``ৰ`` (U+09F0) and ``ৱ`` (U+09F1) occur in Assamese
+   and essentially never in correct Bengali. The ratio of ``ৰ`` to ``র`` is
+   strongly diagnostic even in short documents.
+2. **Function words** - frequent grammatical forms differ between the languages
+   (Assamese ``আৰু``/``হৈছে`` against Bengali ``এবং``/``হয়েছে``).
+
+Scores are per-token rates so document length does not bias the verdict, and a
+language is assigned only when it wins by a margin: ambiguous documents come back
+as ``unknown`` and are dropped rather than guessed into a corpus.
 """
 
 from __future__ import annotations
@@ -34,121 +32,124 @@ from dataclasses import dataclass
 
 from .normalize import ASSAMESE_RA, ASSAMESE_WA, BENGALI_RA
 
-_RE_TOKEN = re.compile(r"[ঀ-৿]+")
+_RE_DEVANAGARI = re.compile(r"[ऀ-ॿ]")
+_RE_BENGALI = re.compile(r"[ঀ-৿]")
+_RE_LETTER = re.compile(r"[^\W\d_]", re.UNICODE)
+_RE_BENGALI_TOKEN = re.compile(r"[ঀ-৿]+")
 
-#: Assamese function words / high-frequency forms with Bengali counterparts.
+#: Which script each supported language is written in.
+LANGUAGE_SCRIPTS = {"hi": "devanagari", "as": "bengali", "bn": "bengali"}
+
+#: Assamese function words and high-frequency forms with Bengali counterparts.
 _ASSAMESE_MARKERS: frozenset[str] = frozenset(
     {
-        "আৰু",      # and
-        "হৈছে",     # has become
-        "কৰি",      # doing
-        "কৰা",      # to do
-        "কৰে",      # does
-        "নাই",      # is not
-        "হ'ব",      # will be
-        "গৈ",       # having gone
-        "মোৰ",      # my
-        "তেওঁ",     # he/she (honorific)
-        "সিহঁত",    # they
-        "ইয়াত",     # here
-        "বুলি",     # saying / that
-        "লগত",      # with
-        "অসম",      # Assam
-        "অসমীয়া",   # Assamese
-        "পৰা",      # from
-        "হৈ",       # being
-        "নহয়",      # is not
-        "যেন",      # as if
+        "আৰু", "হৈছে", "কৰি", "কৰা", "কৰে", "নাই", "হ'ব", "গৈ", "মোৰ", "তেওঁ",
+        "সিহঁত", "ইয়াত", "বুলি", "লগত", "অসম", "অসমীয়া", "পৰা", "হৈ", "নহয়", "যেন",
     }
 )
 
 #: Bengali function words that are rare or absent in Assamese.
 _BENGALI_MARKERS: frozenset[str] = frozenset(
     {
-        "এবং",      # and
-        "হয়েছে",    # has become
-        "করে",      # does
-        "করা",      # to do
-        "করেন",     # does (honorific)
-        "থেকে",     # from
-        "তিনি",     # he/she (honorific)
-        "তাদের",    # their
-        "আমাদের",   # our
-        "এই",       # this
-        "সেই",      # that
-        "নয়",       # is not
-        "হবে",      # will be
-        "খুব",      # very
-        "সঙ্গে",     # with
-        "বাংলা",    # Bengali
-        "পশ্চিমবঙ্গ",  # West Bengal
-        "কিন্তু",    # but
-        "জন্য",     # for
-        "সাথে",     # with
+        "এবং", "হয়েছে", "করে", "করা", "করেন", "থেকে", "তিনি", "তাদের", "আমাদের",
+        "এই", "সেই", "নয়", "হবে", "খুব", "সঙ্গে", "বাংলা", "পশ্চিমবঙ্গ", "কিন্তু",
+        "জন্য", "সাথে",
     }
 )
 
 
 @dataclass(frozen=True)
 class LanguageVerdict:
-    """Outcome of a Bengali-vs-Assamese decision for one document.
+    """Outcome of a language check for one document.
 
     Attributes:
-        language: ``"as"``, ``"bn"``, or ``"unknown"`` when evidence is too thin.
-        assamese_score: Evidence rate favouring Assamese.
-        bengali_score: Evidence rate favouring Bengali.
-        evidence_tokens: Number of script tokens the decision was based on.
+        language: ``"hi"``, ``"as"``, ``"bn"``, or ``"unknown"``.
+        assamese_score: Evidence rate favouring Assamese (Bengali script only).
+        bengali_score: Evidence rate favouring Bengali (Bengali script only).
+        evidence_tokens: Tokens the decision was based on.
+        script: Dominant script detected, or ``"mixed"`` when none dominates.
     """
 
     language: str
-    assamese_score: float
-    bengali_score: float
-    evidence_tokens: int
+    assamese_score: float = 0.0
+    bengali_score: float = 0.0
+    evidence_tokens: int = 0
+    script: str = "unknown"
 
     @property
     def margin(self) -> float:
-        """Absolute difference between the two scores."""
+        """Absolute gap between the Assamese and Bengali scores."""
         return abs(self.assamese_score - self.bengali_score)
 
 
-class BengaliAssameseIdentifier:
-    """Scores a document as Assamese or Bengali using orthographic evidence.
+class IndicLanguageIdentifier:
+    """Checks whether a document is in the expected language.
 
     Args:
-        min_tokens: Documents with fewer script tokens than this are reported as
-            ``unknown`` - too little evidence to be worth a guess.
-        min_margin: Minimum score gap required to commit to a language.
+        min_tokens: Documents with fewer script tokens are reported ``unknown`` -
+            too little evidence to justify a verdict.
+        min_margin: Minimum score gap required to commit to Bengali or Assamese.
+        min_script_share: Fraction of letters that must belong to a script before
+            that script is considered dominant.
     """
 
-    def __init__(self, min_tokens: int = 12, min_margin: float = 0.004) -> None:
-        """Store decision thresholds."""
+    def __init__(
+        self,
+        min_tokens: int = 12,
+        min_margin: float = 0.004,
+        min_script_share: float = 0.60,
+    ) -> None:
+        """Store the decision thresholds."""
         self.min_tokens = min_tokens
         self.min_margin = min_margin
+        self.min_script_share = min_script_share
+
+    def detect_script(self, text: str) -> str:
+        """Return the dominant script: ``devanagari``, ``bengali``, or ``mixed``."""
+        letters = _RE_LETTER.findall(text)
+        if not letters:
+            return "unknown"
+        total = len(letters)
+        devanagari = len(_RE_DEVANAGARI.findall(text)) / total
+        bengali = len(_RE_BENGALI.findall(text)) / total
+
+        if devanagari >= self.min_script_share:
+            return "devanagari"
+        if bengali >= self.min_script_share:
+            return "bengali"
+        return "mixed"
 
     def identify(self, text: str) -> LanguageVerdict:
         """Classify one document.
 
-        Args:
-            text: Normalized document text.
-
-        Returns:
-            A :class:`LanguageVerdict`. Callers should treat ``unknown`` as
-            "do not use", not as "either is fine".
+        Devanagari text is reported as Hindi directly - the script is decisive.
+        Bengali-script text goes on to the Bengali-vs-Assamese scorer.
         """
-        tokens = _RE_TOKEN.findall(text)
+        script = self.detect_script(text)
+
+        if script == "devanagari":
+            tokens = len(text.split())
+            if tokens < self.min_tokens:
+                return LanguageVerdict("unknown", evidence_tokens=tokens, script=script)
+            return LanguageVerdict("hi", evidence_tokens=tokens, script=script)
+
+        if script != "bengali":
+            return LanguageVerdict("unknown", script=script)
+
+        tokens = _RE_BENGALI_TOKEN.findall(text)
         n_tokens = len(tokens)
         if n_tokens < self.min_tokens:
-            return LanguageVerdict("unknown", 0.0, 0.0, n_tokens)
+            return LanguageVerdict("unknown", evidence_tokens=n_tokens, script=script)
 
-        as_marker_hits = sum(1 for token in tokens if token in _ASSAMESE_MARKERS)
-        bn_marker_hits = sum(1 for token in tokens if token in _BENGALI_MARKERS)
+        as_markers = sum(1 for token in tokens if token in _ASSAMESE_MARKERS)
+        bn_markers = sum(1 for token in tokens if token in _BENGALI_MARKERS)
 
         # Exclusive-letter evidence, weighted up because it is near-decisive.
         assamese_letters = text.count(ASSAMESE_RA) + text.count(ASSAMESE_WA)
         bengali_ra = text.count(BENGALI_RA)
 
-        as_score = (as_marker_hits + 3.0 * assamese_letters) / n_tokens
-        bn_score = (bn_marker_hits + 0.35 * bengali_ra) / n_tokens
+        as_score = (as_markers + 3.0 * assamese_letters) / n_tokens
+        bn_score = (bn_markers + 0.35 * bengali_ra) / n_tokens
 
         if as_score - bn_score >= self.min_margin:
             language = "as"
@@ -156,7 +157,7 @@ class BengaliAssameseIdentifier:
             language = "bn"
         else:
             language = "unknown"
-        return LanguageVerdict(language, as_score, bn_score, n_tokens)
+        return LanguageVerdict(language, as_score, bn_score, n_tokens, script)
 
     def accepts(self, text: str, language: str) -> bool:
         """Return True when `text` is confidently the requested language.
@@ -165,3 +166,7 @@ class BengaliAssameseIdentifier:
         dropped instead of being assigned to whichever corpus is being built.
         """
         return self.identify(text).language == language
+
+
+#: Backwards-compatible alias from when the project used Bengali as Model H.
+BengaliAssameseIdentifier = IndicLanguageIdentifier

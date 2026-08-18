@@ -9,12 +9,15 @@ Filters, in order of application
 -------------------------------
 1. Length - too short to contain usable language modelling signal.
 2. Script ratio - the document must be predominantly Bengali-script, which
-   removes English pages, navigation chrome, and code blocks. Measured over
+   removes off-script pages, navigation chrome, and code blocks. Measured over
    letters only, so digit-heavy pages are attributed to the digit filter instead.
+   The script is chosen per language: Devanagari for Hindi, Bengali for Assamese.
 3. Replacement/mojibake - a high rate of U+FFFD indicates broken decoding.
 4. Repetition - boilerplate and generated spam repeat lines or n-grams.
 5. Symbol and digit ratio - tables, price lists, and link farms.
-6. Language identity - Bengali vs Assamese, see :mod:`lma.data.language_id`.
+6. Language identity - see :mod:`lma.data.language_id`. Hindi and Assamese use
+   different scripts so the check is decisive; Bengali vs Assamese needs
+   orthographic evidence.
 7. Exact duplicates - SHA-256 over normalized text.
 8. Near duplicates - MinHash + LSH over character 5-gram shingles.
 """
@@ -27,9 +30,14 @@ import unicodedata
 from collections import Counter
 from dataclasses import dataclass, field, asdict
 
-from .language_id import BengaliAssameseIdentifier
+from .language_id import IndicLanguageIdentifier
+from .normalize import LANGUAGE_SCRIPTS_DEFAULT
 
-_RE_BENGALI_CHAR = re.compile(r"[ঀ-৿]")
+#: Per-script character classes, selected by the cleaner from its config.
+_RE_SCRIPT = {
+    "devanagari": re.compile(r"[ऀ-ॿ]"),
+    "bengali": re.compile(r"[ঀ-৿]"),
+}
 _RE_WORD = re.compile(r"\S+")
 #: Letters only (no digits) - see the script-ratio filter for why that matters.
 _RE_LETTER = re.compile(r"[^\W\d_]", re.UNICODE)
@@ -44,7 +52,10 @@ class CleanerConfig:
     pages. Every value is written to the run manifest so results stay reproducible.
     """
 
-    language: str = "bn"
+    language: str = "hi"
+    #: Writing system, which selects the script-ratio character class. Defaults
+    #: from the language when left as None.
+    script: str | None = None
     min_chars: int = 200
     min_words: int = 25
     max_chars: int = 500_000
@@ -288,7 +299,9 @@ class DocumentCleaner:
         self.config = config
         self.stats = CleanerStats()
         self._seen_hashes: set[bytes] = set()
-        self._identifier = BengaliAssameseIdentifier() if config.check_language_identity else None
+        self._script = config.script or LANGUAGE_SCRIPTS_DEFAULT.get(config.language, "devanagari")
+        self._script_re = _RE_SCRIPT[self._script]
+        self._identifier = IndicLanguageIdentifier() if config.check_language_identity else None
         self._near_dup = (
             MinHashDeduplicator(
                 permutations=config.minhash_permutations,
@@ -325,7 +338,7 @@ class DocumentCleaner:
         letters = _RE_LETTER.findall(text)
         if not letters:
             return "no_letters"
-        script_hits = len(_RE_BENGALI_CHAR.findall(text))
+        script_hits = len(self._script_re.findall(text))
         if script_hits / len(letters) < cfg.min_script_ratio:
             return "low_script_ratio"
 

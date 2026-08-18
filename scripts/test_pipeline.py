@@ -149,6 +149,18 @@ def test_language_id() -> None:
     # Non-Bengali-script text (the Latin-script contamination seen in Sangraha).
     check("Latin text -> unknown", identifier.identify("Uru-o ti ibidaba anduane homogonaga" * 5).language == "unknown")
 
+    # Hindi vs Assamese: different Unicode blocks, so the script decides and any
+    # cross-contamination between Model H and Model L is caught with certainty,
+    # not inferred from orthographic hints.
+    hindi = (
+        "भारत दक्षिण एशिया में स्थित एक विशाल देश है और इसकी राजधानी नई दिल्ली है। यहाँ हिन्दी भाषा सबसे अधिक बोली जाती है और यह देवनागरी लिपि में लिखी जाती है। गंगा नदी इस देश की सबसे पवित्र नदी मानी जाती है और लाखों लोग इसके किनारे रहते हैं।"
+    )
+    check("Hindi detected as hi", identifier.identify(hindi).language == "hi",
+          f"got {identifier.identify(hindi)}")
+    check("script detected as devanagari", identifier.detect_script(hindi) == "devanagari")
+    check("Hindi rejected from the Assamese corpus", not identifier.accepts(hindi, "as"))
+    check("Assamese rejected from the Hindi corpus", not identifier.accepts(assamese, "hi"))
+
 
 # --- deduplication -------------------------------------------------------------
 
@@ -249,6 +261,25 @@ def test_cleaner() -> None:
     check("repetition filter fires", bool({"repeated_lines", "repeated_ngram"} & set(probe.stats.rejected)),
           f"got {list(probe.stats.rejected)}")
 
+    # Hindi documents must pass the Devanagari cleaner and be rejected by the
+    # Assamese one. This is the Model H / Model L independence boundary, and
+    # because the scripts differ it is a decisive check rather than a heuristic.
+    hindi_doc = (
+        "भारत दक्षिण एशिया में स्थित एक विशाल देश है और इसकी राजधानी नई दिल्ली है। "
+        "यहाँ पर हिन्दी भाषा सबसे अधिक बोली जाती है तथा यह देवनागरी लिपि में लिखी जाती है। "
+        "गंगा नदी इस देश की सबसे पवित्र नदी मानी जाती है और लाखों लोग इसके किनारे बसे हुए हैं। "
+        "कृषि यहाँ की अर्थव्यवस्था का प्रमुख आधार है और अधिकांश जनसंख्या गाँवों में निवास करती है। "
+        "देश की संस्कृति अत्यन्त प्राचीन और विविधतापूर्ण मानी जाती है जिसमें अनेक परम्पराएँ सम्मिलित हैं। "
+    )
+    hi_cleaner = DocumentCleaner(CleanerConfig(language="hi"))
+    check("Hindi document kept by the Devanagari cleaner",
+          hi_cleaner.process(hindi_doc) is not None,
+          f"rejected: {hi_cleaner.stats.rejected}")
+    probe = DocumentCleaner(CleanerConfig(language="as"))
+    probe.process(hindi_doc)
+    check("Hindi rejected from the Assamese corpus",
+          bool(probe.stats.rejected), f"got {list(probe.stats.rejected)}")
+
     # Cross-language rejection: Bengali text must not enter the Assamese corpus.
     probe = DocumentCleaner(CleanerConfig(language="as"))
     probe.process(good)
@@ -304,7 +335,7 @@ def test_source_manifests() -> None:
     print("\n[source manifests]")
     from lma.data.sources import build_source, load_manifest
 
-    for language, manifest in (("bn", "bengali/configs/sources.yaml"), ("as", "assamese/configs/sources.yaml")):
+    for language, manifest in (("hi", "hindi/configs/sources.yaml"), ("as", "assamese/configs/sources.yaml")):
         path = REPO_ROOT / manifest
         specs = load_manifest(path)
         check(f"[{language}] manifest loads with enabled sources", bool(specs), "no enabled sources")

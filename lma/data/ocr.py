@@ -29,7 +29,7 @@ from pathlib import Path
 from typing import Iterator
 
 #: Tesseract language codes for the project's two languages.
-TESSERACT_LANGS = {"bn": "ben", "as": "asm"}
+TESSERACT_LANGS = {"hi": "hin", "bn": "ben", "as": "asm"}
 
 _RE_HYPHEN_BREAK = re.compile(r"-\n(?=\S)")
 _RE_PAGE_NUMBER_LINE = re.compile(r"^\s*[\d০-৯]{1,4}\s*$", re.MULTILINE)
@@ -52,7 +52,7 @@ class OcrConfig:
         join_hyphenated: Rejoin words broken across a line by a hyphen.
     """
 
-    language: str = "bn"
+    language: str = "hi"
     dpi: int = 300
     prefer_embedded_text: bool = True
     min_chars_per_page: int = 120
@@ -80,9 +80,9 @@ def check_dependencies(need_ocr: bool = True) -> dict[str, str | None]:
     return {tool: shutil.which(tool) for tool in tools}
 
 
-def install_hint(language: str = "bn") -> str:
+def install_hint(language: str = "hi") -> str:
     """Return the apt command that installs every OCR dependency."""
-    lang_pack = TESSERACT_LANGS.get(language, "ben")
+    lang_pack = TESSERACT_LANGS.get(language, "hin")
     return (
         "sudo apt-get install -y poppler-utils tesseract-ocr "
         f"tesseract-ocr-{lang_pack}"
@@ -132,7 +132,7 @@ class PdfTextExtractor:
         """Rasterize pages [first, last] and OCR each one with Tesseract."""
         if not self._has_ocr:
             return []
-        lang = TESSERACT_LANGS.get(self.config.language, "ben")
+        lang = TESSERACT_LANGS.get(self.config.language, "hin")
         pages: list[str] = []
         with tempfile.TemporaryDirectory() as tmp:
             tmp_dir = Path(tmp)

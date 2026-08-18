@@ -20,11 +20,21 @@ matplotlib.use("Agg")  # Headless: figures are written to disk, never displayed.
 import matplotlib.pyplot as plt
 
 #: One consistent colour per language across every figure in the report.
-LANGUAGE_COLORS = {"bn": "#1f77b4", "as": "#d62728"}
-LANGUAGE_LABELS = {"bn": "Bengali (Model H)", "as": "Assamese (Model L)"}
+LANGUAGE_COLORS = {"hi": "#1f77b4", "as": "#d62728", "bn": "#2ca02c"}
+LANGUAGE_LABELS = {
+    "hi": "Hindi (Model H)",
+    "as": "Assamese (Model L)",
+    "bn": "Bengali",
+}
 
-#: Bengali-capable fonts, most preferred first.
-_BENGALI_FONTS = (
+#: Fonts covering the Indic scripts used here. Devanagari and Bengali need
+#: different faces, and figures may mix both, so all are offered to the
+#: fallback chain and matplotlib picks per glyph.
+_INDIC_FONTS = (
+    "Noto Sans Devanagari",
+    "Noto Serif Devanagari",
+    "Lohit Devanagari",
+    "Samyak Devanagari",
     "Noto Sans Bengali",
     "Noto Serif Bengali",
     "Lohit Bengali",
@@ -32,21 +42,21 @@ _BENGALI_FONTS = (
     "FreeSans",
 )
 
-#: Latin-capable fallbacks. Required because the Bengali Noto fonts contain *no*
+#: Latin-capable fallbacks. Required because the Noto Indic faces contain *no*
 #: Latin glyphs at all - every English axis label, legend entry, and numeral would
-#: render as a tofu box if a Bengali font were used alone.
+#: render as a tofu box if an Indic font were used alone.
 _LATIN_FONTS = ("DejaVu Sans", "Liberation Sans", "FreeSans", "Arial")
 
 
 def configure_fonts() -> str:
-    """Install a font fallback chain that renders both Bengali and Latin text.
+    """Install a font fallback chain that renders both Indic and Latin text.
 
     Matplotlib resolves ``font.family`` as an ordered list, falling through to the
-    next entry per missing glyph. Figures here mix Bengali tick labels with English
+    next entry per missing glyph. Figures here mix Indic tick labels with English
     axis titles, and no single available font covers both: DejaVu Sans has no
-    Bengali coverage, and Noto Sans Bengali has no Latin coverage. Listing a Latin
-    font first and the Bengali font after it means Latin text uses the Latin font
-    and Bengali characters fall through to the Bengali one.
+    Indic coverage, and the Noto Indic faces have no Latin coverage. Listing a
+    Latin font first and the Indic faces after it means Latin text uses the Latin
+    font and Indic characters fall through to whichever face covers them.
 
     Returns:
         A human-readable description of the resolved chain, for logging.
@@ -55,17 +65,17 @@ def configure_fonts() -> str:
 
     available = {font.name for font in font_manager.fontManager.ttflist}
     latin = [name for name in _LATIN_FONTS if name in available]
-    bengali = [name for name in _BENGALI_FONTS if name in available]
+    indic = [name for name in _INDIC_FONTS if name in available]
 
-    chain = latin[:1] + bengali + latin[1:]
+    chain = latin[:1] + indic + latin[1:]
     if not chain:
         return plt.rcParams["font.family"][0]
 
     plt.rcParams["font.family"] = "sans-serif"
     plt.rcParams["font.sans-serif"] = chain
-    # Minus signs come from the Bengali font otherwise, which lacks U+2212.
+    # Minus signs come from the Indic font otherwise, which lacks U+2212.
     plt.rcParams["axes.unicode_minus"] = False
-    return " -> ".join(chain) if bengali else f"{chain[0]} (no Bengali font found)"
+    return " -> ".join(chain) if indic else f"{chain[0]} (no Indic font found)"
 
 
 def _finalize(fig, ax, title: str, xlabel: str, ylabel: str, output_path: Path, legend: bool = False) -> Path:
@@ -123,7 +133,7 @@ def plot_corpus_size_comparison(stats_by_language: dict[str, dict], output_path:
         ax.grid(True, alpha=0.3, linestyle="--", axis="y")
         ax.tick_params(axis="x", labelsize=8)
 
-    fig.suptitle("Corpus size comparison: Bengali (higher-resource) vs Assamese (lower-resource)",
+    fig.suptitle("Corpus size comparison: Hindi (higher-resource) vs Assamese (lower-resource)",
                  fontsize=12, fontweight="bold")
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)

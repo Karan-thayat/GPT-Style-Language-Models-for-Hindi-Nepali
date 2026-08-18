@@ -21,7 +21,11 @@ from pathlib import Path
 from typing import Iterable, Iterator
 
 _RE_WORD = re.compile(r"[^\s]+")
-_RE_BENGALI = re.compile(r"[ঀ-৿]")
+#: Per-script classes; the statistics object picks one from its language.
+_RE_SCRIPT = {
+    "devanagari": re.compile(r"[ऀ-ॿ]"),
+    "bengali": re.compile(r"[ঀ-৿]"),
+}
 _RE_LATIN = re.compile(r"[A-Za-z]")
 _RE_SENTENCE = re.compile(r"[।!?\n]+")
 
@@ -38,6 +42,8 @@ class CorpusStatistics:
     """
 
     language: str
+    #: Writing system; defaults from the language when left as None.
+    script: str | None = None
     reservoir_size: int = 200_000
     max_vocab_tracked: int = 3_000_000
 
@@ -45,7 +51,7 @@ class CorpusStatistics:
     characters: int = 0
     words: int = 0
     sentences: int = 0
-    bengali_chars: int = 0
+    script_chars: int = 0
     latin_chars: int = 0
     digit_chars: int = 0
     whitespace_chars: int = 0
@@ -68,6 +74,13 @@ class CorpusStatistics:
     _char_counter: Counter = field(default_factory=Counter, repr=False)
     _rng_state: int = 0x243F6A8885A308D3
 
+    def __post_init__(self) -> None:
+        """Resolve the script for this language and cache its regex."""
+        from ..data.normalize import LANGUAGE_SCRIPTS_DEFAULT
+
+        self._script = self.script or LANGUAGE_SCRIPTS_DEFAULT.get(self.language, "devanagari")
+        self._script_re = _RE_SCRIPT[self._script]
+
     def _next_random(self) -> int:
         """Advance a small deterministic PRNG for reservoir sampling."""
         x = self._rng_state
@@ -88,7 +101,7 @@ class CorpusStatistics:
         self.words += n_words
         self.sentences += sum(1 for part in _RE_SENTENCE.split(text) if part.strip())
 
-        self.bengali_chars += len(_RE_BENGALI.findall(text))
+        self.script_chars += len(self._script_re.findall(text))
         self.latin_chars += len(_RE_LATIN.findall(text))
         for ch in text:
             if ch.isdigit():
@@ -230,7 +243,8 @@ class CorpusStatistics:
                 "sampled_documents": len(lengths),
             },
             "script_composition": {
-                "bengali_char_ratio": self.bengali_chars / non_space_chars,
+                "script_char_ratio": self.script_chars / non_space_chars,
+                "script": self._script,
                 "latin_char_ratio": self.latin_chars / non_space_chars,
                 "digit_char_ratio": self.digit_chars / non_space_chars,
                 "punctuation_char_ratio": self.punctuation_chars / non_space_chars,

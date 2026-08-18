@@ -25,13 +25,13 @@ from lma.data.ocr import OcrConfig, check_dependencies, ingest_directory, instal
 from lma.utils.logging_utils import setup_logging, write_json
 
 #: Default directory layout per language.
-LANGUAGE_DIRS = {"bn": "bengali", "as": "assamese"}
+LANGUAGE_DIRS = {"hi": "hindi", "as": "assamese"}
 
 
 def parse_args() -> argparse.Namespace:
     """Parse command-line arguments."""
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--language", required=True, choices=["bn", "as"], help="Target language")
+    parser.add_argument("--language", required=True, choices=["hi", "as"], help="Target language")
     parser.add_argument("--pdf-dir", type=Path, default=None, help="Directory of PDFs (default: <lang>/data/raw/pdf)")
     parser.add_argument("--output", type=Path, default=None, help="Output JSONL (default: <lang>/data/raw/ocr/ocr.jsonl)")
     parser.add_argument("--dpi", type=int, default=300, help="Rasterization DPI for true OCR")
