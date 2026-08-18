@@ -33,7 +33,7 @@ sources:
     # assignment requires. Bengali Wikipedia articles are long (~1,100 words each),
     # so this source dominates word counts faster than its document count suggests;
     # the cap is set from measured words/document, not guessed.
-    limit: 1000
+    limit: 1200
     notes: >
       Bengali Wikipedia. Clean encyclopedic prose, good for a normalization
       baseline, but stylistically narrow - it must not be the whole corpus.
@@ -51,7 +51,7 @@ sources:
     enabled: true
     # ~400 words/document, so this contributes far less volume per document than
     # Wikipedia and can keep a higher document cap.
-    limit: 1200
+    limit: 3500
     notes: >
       AI4Bharat Sangraha verified Bengali split - large, deduplicated web and
       news text. This is the main volume driver toward the 500M-token target.
@@ -88,11 +88,14 @@ sources:
       - 'ব্যবহারকারী:'
       - 'আলাপ:'
     content_selector: '#mw-content-text'
-    # Sized to the pages already in `cache_dir`, so a re-run replays the cache
-    # instead of re-crawling for hours at the 1 req/s rate limit. Raise this
-    # (and re-run) to collect more manual text; the cache makes it incremental.
-    max_pages: 380
-    max_depth: 4
+    # Manual collection is the binding constraint: the assignment requires >=20%
+    # of training tokens to come from manual collection, and the downloaded
+    # sources above are capped to preserve that ratio. Every extra scraped page
+    # therefore raises the ceiling on total corpus size, so this is set well above
+    # the ~1,600 pages already cached. Cached pages replay instantly; only new
+    # URLs pay the 1 req/s rate limit, making re-runs incremental.
+    max_pages: 6000
+    max_depth: 6
     delay_seconds: 1.0
     cache_dir: bengali/data/raw/scrape_cache
     notes: >
