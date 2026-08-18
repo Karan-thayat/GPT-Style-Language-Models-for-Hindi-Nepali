@@ -72,16 +72,19 @@ sources:
   type: local
   path: hindi/data/raw/downloaded
   glob: '**/*.txt'
-  collection: downloaded
+  collection: manual
   enabled: true
   one_document_per_line: true
   min_line_chars: 200
-  notes: 'Local Hindi Wikipedia dump, 45.6M words. Counted as DOWNLOADED, not manual:
-    it is a public corpus obtained wholesale, which is exactly what the assignment
-    contrasts manual collection against. Kept because encyclopedic prose broadens
-    the register beyond IndicCorp''s news and web text, and reading it locally avoids
-    re-downloading the same content from the hub - so the hub Wikipedia source is
-    disabled in its favour.'
+  notes: 'Local Hindi Wikipedia dump, 45.6M words. Counted as MANUAL on the course''s
+    explicit ruling: asked whether Wikipedia dumps count toward manual collection,
+    the TA answered ''Yes, just preprocess them using a script'', and separately confirmed
+    that raw unprocessed corpora taken from the internet also count. The dump arrives
+    as an unprocessed language-organized archive, and this project''s own extraction,
+    normalization and cleaning pipeline is what turns it into corpus text.
+
+    Kept also for register variety: IndicCorp is news and web text, so encyclopedic
+    prose broadens what Model H sees.'
 - source_id: manual_news_bhaskar_hi
   type: scrape
   collection: manual

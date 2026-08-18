@@ -1,83 +1,59 @@
-# Hindi (Model H) Phase 1 pipeline configuration.
-#
-# Two profiles: `sampled` is the bounded run used to verify the pipeline and
-# produce the report figures; `full` targets ~500M training tokens. Select with
-# `--profile full` on scripts/build_corpus.py.
-
 language: hi
 language_name: Hindi
 model: H
 script: devanagari
-
 paths:
   raw_dir: hindi/data/raw
   processed_dir: hindi/data/processed
   tokenizer_dir: hindi/tokenizer
   stats_dir: hindi/reports
   logs_dir: hindi/logs
-
-# Cleaning thresholds; see lma.data.clean.CleanerConfig for what each does.
 cleaning:
   script: devanagari
   min_chars: 200
   min_words: 25
   max_chars: 500000
-  # Fraction of *letters* that must be Devanagari. Hindi web text carries a fair
-  # amount of incidental English (brand names, technical terms), so this is not
-  # set higher; the language-identity check catches genuinely English documents.
-  min_script_ratio: 0.70
+  min_script_ratio: 0.7
   max_replacement_ratio: 0.002
-  max_duplicate_line_ratio: 0.30
-  max_top_ngram_ratio: 0.20
-  max_digit_ratio: 0.20
-  max_symbol_ratio: 0.10
+  max_duplicate_line_ratio: 0.3
+  max_top_ngram_ratio: 0.2
+  max_digit_ratio: 0.2
+  max_symbol_ratio: 0.1
   max_char_run: 20
-  # Hindi and Assamese use different Unicode blocks, so this check is decisive
-  # rather than probabilistic: any Bengali-script document in a Hindi corpus is
-  # detected with certainty, and vice versa.
   check_language_identity: true
   dedup_exact: true
   dedup_near: true
-  near_dup_threshold: 0.70
+  near_dup_threshold: 0.7
   minhash_permutations: 96
   shingle_size: 5
-
-# Split ratios for the full-scale run. At ~500M training tokens, 1% is still
-# ~5M tokens held out, which is ample for stable perplexity. The `sampled`
-# profile overrides these - see `profiles` below.
 splits:
   train: 0.98
   validation: 0.01
   test: 0.01
   seed: 20260812
   pinned_sources: {}
-
 tokenizer:
   model_type: unigram
-  vocab_size: 32000
+  vocab_size: 8000
   character_coverage: 0.9995
   byte_fallback: true
   split_digits: true
-  # The corpus is already normalized by this project's Devanagari-aware
-  # normalizer. SentencePiece's built-in normalizers are not script-aware in the
-  # way this project needs, and a second pass risks undoing the nukta handling.
   normalization_rule_name: identity
   seed: 20260812
-  # The chosen vocabulary size must be justified by held-out fertility and
-  # unknown/byte-fallback rate, not asserted.
-  sweep_vocab_sizes: [8000, 16000, 32000, 48000, 64000]
-  sweep_model_types: [unigram, bpe]
-
+  sweep_vocab_sizes:
+  - 5000
+  - 6000
+  - 8000
+  - 10000
+  sweep_model_types:
+  - unigram
+  - bpe
 profiles:
   sampled:
     per_source_doc_limit: 4000
     tokenizer_max_train_lines: 300000
     sweep_max_train_lines: 150000
     target_train_tokens: null
-    # A percentage split of a small sampled corpus leaves too few held-out
-    # documents to measure fertility or perplexity stably, so the sampled profile
-    # holds out more. Splits are assigned by content hash, so this changes only
-    # which documents are held out, not the reproducibility of the assignment.
     splits:
       train: 0.88
       validation: 0.06

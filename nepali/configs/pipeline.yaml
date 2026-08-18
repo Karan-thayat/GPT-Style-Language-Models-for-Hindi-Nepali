@@ -1,93 +1,60 @@
-# Hindi (Model H) Phase 1 pipeline configuration.
-#
-# Two profiles: `sampled` is the bounded run used to verify the pipeline and
-# produce the report figures; `full` targets ~500M training tokens. Select with
-# `--profile full` on scripts/build_corpus.py.
-
 language: ne
 language_name: Nepali
 model: L
 script: devanagari
-
 paths:
   raw_dir: nepali/data/raw
   processed_dir: nepali/data/processed
   tokenizer_dir: nepali/tokenizer
   stats_dir: nepali/reports
   logs_dir: nepali/logs
-
-# Cleaning thresholds; see lma.data.clean.CleanerConfig for what each does.
 cleaning:
   script: devanagari
-  # Lower than Hindi's: Nepali web documents are shorter on average, and
-  # discarding them at Hindi thresholds throws away a much larger share of a much
-  # smaller corpus.
   min_chars: 120
   min_words: 15
   max_chars: 500000
-  # Fraction of *letters* that must be Devanagari. Hindi web text carries a fair
-  # amount of incidental English (brand names, technical terms), so this is not
-  # set higher; the language-identity check catches genuinely English documents.
-  min_script_ratio: 0.70
+  min_script_ratio: 0.7
   max_replacement_ratio: 0.002
-  max_duplicate_line_ratio: 0.30
-  max_top_ngram_ratio: 0.20
-  max_digit_ratio: 0.20
-  max_symbol_ratio: 0.10
+  max_duplicate_line_ratio: 0.3
+  max_top_ngram_ratio: 0.2
+  max_digit_ratio: 0.2
+  max_symbol_ratio: 0.1
   max_char_run: 20
-  # Critical for Nepali. It shares the Devanagari script with Hindi, so a script
-  # check cannot separate them, and Hindi text is far more abundant online - which
-  # makes leakage into this corpus the likeliest way to break the independence
-  # constraint. The identity filter scores grammar (copulas, case markers) rather
-  # than characters; see lma/data/language_id.py.
   check_language_identity: true
   dedup_exact: true
   dedup_near: true
-  near_dup_threshold: 0.70
+  near_dup_threshold: 0.7
   minhash_permutations: 96
   shingle_size: 5
-
-# Split ratios for the full-scale run. At ~500M training tokens, 1% is still
-# ~5M tokens held out, which is ample for stable perplexity. The `sampled`
-# profile overrides these - see `profiles` below.
-# Larger held-out fractions than Hindi's, because Nepali has far less data and
-# 1% of a small corpus is too few documents for a stable perplexity estimate.
 splits:
   train: 0.96
   validation: 0.02
   test: 0.02
   seed: 20260812
   pinned_sources: {}
-
 tokenizer:
   model_type: unigram
-  # Smaller than Hindi's 32k: with far fewer training tokens, a large vocabulary
-  # contains many pieces seen only a handful of times, whose embeddings cannot be
-  # learned well. The sweep tests this rather than assuming it.
-  vocab_size: 16000
+  vocab_size: 8000
   character_coverage: 0.9995
   byte_fallback: true
   split_digits: true
-  # The corpus is already normalized by this project's Devanagari-aware
-  # normalizer. SentencePiece's built-in normalizers are not script-aware in the
-  # way this project needs, and a second pass risks undoing the nukta handling.
   normalization_rule_name: identity
   seed: 20260812
-  # The chosen vocabulary size must be justified by held-out fertility and
-  # unknown/byte-fallback rate, not asserted.
-  sweep_vocab_sizes: [4000, 8000, 16000, 24000, 32000]
-  sweep_model_types: [unigram, bpe]
-
+  sweep_vocab_sizes:
+  - 4000
+  - 5000
+  - 6000
+  - 8000
+  - 10000
+  sweep_model_types:
+  - unigram
+  - bpe
 profiles:
   sampled:
     per_source_doc_limit: 4000
     tokenizer_max_train_lines: 300000
     sweep_max_train_lines: 150000
     target_train_tokens: null
-    # A percentage split of a small sampled corpus leaves too few held-out
-    # documents to measure fertility or perplexity stably, so the sampled profile
-    # holds out more. Splits are assigned by content hash, so this changes only
-    # which documents are held out, not the reproducibility of the assignment.
     splits:
       train: 0.88
       validation: 0.06
@@ -96,8 +63,4 @@ profiles:
     per_source_doc_limit: null
     tokenizer_max_train_lines: 8000000
     sweep_max_train_lines: 1000000
-    # Same 500M target as Hindi. Open Nepali text will almost certainly fall
-    # short; the pipeline reports the exact achieved count so the shortfall can be
-    # quantified and justified rather than hidden. The assignment permits this
-    # explicitly for the lower-resource language.
     target_train_tokens: 500000000
