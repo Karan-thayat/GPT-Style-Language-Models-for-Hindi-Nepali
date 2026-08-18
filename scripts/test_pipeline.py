@@ -149,9 +149,10 @@ def test_language_id() -> None:
     # Non-Bengali-script text (the Latin-script contamination seen in Sangraha).
     check("Latin text -> unknown", identifier.identify("Uru-o ti ibidaba anduane homogonaga" * 5).language == "unknown")
 
-    # Hindi vs Assamese: different Unicode blocks, so the script decides and any
-    # cross-contamination between Model H and Model L is caught with certainty,
-    # not inferred from orthographic hints.
+    # Hindi vs Nepali is the pair that matters now, and it is the hard case: both
+    # are Devanagari, so the script cannot separate them and the decision rests on
+    # grammar. Getting this wrong would let Hindi - far more abundant online -
+    # contaminate Model L's corpus invisibly.
     hindi = (
         "भारत दक्षिण एशिया में स्थित एक विशाल देश है और इसकी राजधानी नई दिल्ली है। यहाँ हिन्दी भाषा सबसे अधिक बोली जाती है और यह देवनागरी लिपि में लिखी जाती है। गंगा नदी इस देश की सबसे पवित्र नदी मानी जाती है और लाखों लोग इसके किनारे रहते हैं।"
     )
@@ -160,6 +161,27 @@ def test_language_id() -> None:
     check("script detected as devanagari", identifier.detect_script(hindi) == "devanagari")
     check("Hindi rejected from the Assamese corpus", not identifier.accepts(hindi, "as"))
     check("Assamese rejected from the Hindi corpus", not identifier.accepts(assamese, "hi"))
+
+    nepali = (
+        "नेपाल दक्षिण एसियामा रहेको एउटा सानो देश हो र यसको राजधानी काठमाडौं हो। यहाँ नेपाली भाषा बोलिन्छ र यो देवनागरी लिपिमा लेखिन्छ। सगरमाथा संसारकै अग्लो हिमाल हो र यो नेपालमा पर्दछ। उनले भनेका छन् कि यो काम गरेको छ। धेरै मानिसहरू कृषिमा निर्भर छन् र गाउँमा बस्छन्।"
+    )
+    ne_verdict = identifier.identify(nepali)
+    hi_verdict = identifier.identify(hindi)
+    check("Nepali detected as ne", ne_verdict.language == "ne", f"got {ne_verdict}")
+    check("Nepali is Devanagari script", ne_verdict.script == "devanagari")
+    check("Hindi still detected as hi", hi_verdict.language == "hi", f"got {hi_verdict}")
+    check("Nepali rejected from the Hindi corpus", not identifier.accepts(nepali, "hi"),
+          f"ne scores hi={ne_verdict.hindi_score:.4f} ne={ne_verdict.nepali_score:.4f}")
+    check("Hindi rejected from the Nepali corpus", not identifier.accepts(hindi, "ne"),
+          f"hi scores hi={hi_verdict.hindi_score:.4f} ne={hi_verdict.nepali_score:.4f}")
+    # The separation must be decisive, not marginal, or real-world documents with
+    # fewer marker words would flip.
+    check("Nepali score dominates for Nepali text",
+          ne_verdict.nepali_score > 3 * max(ne_verdict.hindi_score, 1e-9),
+          f"hi={ne_verdict.hindi_score:.4f} ne={ne_verdict.nepali_score:.4f}")
+    check("Hindi score dominates for Hindi text",
+          hi_verdict.hindi_score > 3 * max(hi_verdict.nepali_score, 1e-9),
+          f"hi={hi_verdict.hindi_score:.4f} ne={hi_verdict.nepali_score:.4f}")
 
 
 # --- deduplication -------------------------------------------------------------
@@ -275,6 +297,33 @@ def test_cleaner() -> None:
     check("Hindi document kept by the Devanagari cleaner",
           hi_cleaner.process(hindi_doc) is not None,
           f"rejected: {hi_cleaner.stats.rejected}")
+
+    # Nepali must pass its own cleaner and be rejected by the Hindi one. Both are
+    # Devanagari, so this exercises the grammar-based identity filter rather than
+    # the script-ratio filter.
+    # Varied sentences, not one paragraph repeated: repeating a block trips the
+    # n-gram repetition filter, which would mask what this test is checking.
+    nepali_doc = (
+        "नेपाल दक्षिण एसियामा रहेको एउटा सानो देश हो र यसको राजधानी काठमाडौं हो। "
+        "यहाँ नेपाली भाषा बोलिन्छ र यो देवनागरी लिपिमा लेखिन्छ। "
+        "सगरमाथा संसारकै अग्लो हिमाल हो र यो नेपालको उत्तरी भागमा पर्दछ। "
+        "उनले भनेका छन् कि यो काम राम्रोसँग गरेको छ। "
+        "धेरै मानिसहरू कृषिमा निर्भर छन् र गाउँमा बस्छन्। "
+        "पर्यटन नेपालको अर्थतन्त्रको महत्त्वपूर्ण आधार हो भन्ने कुरा सबैले बुझेका छन्। "
+        "काठमाडौं उपत्यकामा धेरै पुराना मन्दिरहरू छन् जुन विश्व सम्पदा सूचीमा परेका छन्। "
+        "हिमाली क्षेत्रमा बस्ने मानिसहरूको जीवनशैली फरक छ र त्यहाँ हिउँ धेरै पर्दछ। "
+        "नेपाली साहित्यमा लक्ष्मीप्रसाद देवकोटाको योगदान निकै ठूलो रहेको छ। "
+        "देशका विभिन्न भागमा फरक फरक भाषा र संस्कृति रहेका छन् भन्ने कुरा सत्य हो। "
+    )
+    ne_cleaner = DocumentCleaner(CleanerConfig(language="ne"))
+    check("Nepali document kept by the Nepali cleaner",
+          ne_cleaner.process(nepali_doc) is not None,
+          f"rejected: {ne_cleaner.stats.rejected}")
+    probe_hi = DocumentCleaner(CleanerConfig(language="hi"))
+    probe_hi.process(nepali_doc)
+    check("Nepali rejected from the Hindi corpus",
+          "wrong_language" in probe_hi.stats.rejected,
+          f"got {list(probe_hi.stats.rejected)}")
     probe = DocumentCleaner(CleanerConfig(language="as"))
     probe.process(hindi_doc)
     check("Hindi rejected from the Assamese corpus",
@@ -335,7 +384,7 @@ def test_source_manifests() -> None:
     print("\n[source manifests]")
     from lma.data.sources import build_source, load_manifest
 
-    for language, manifest in (("hi", "hindi/configs/sources.yaml"), ("as", "assamese/configs/sources.yaml")):
+    for language, manifest in (("hi", "hindi/configs/sources.yaml"), ("ne", "nepali/configs/sources.yaml")):
         path = REPO_ROOT / manifest
         specs = load_manifest(path)
         check(f"[{language}] manifest loads with enabled sources", bool(specs), "no enabled sources")
@@ -374,8 +423,8 @@ def test_ocr() -> None:
     available = check_dependencies(need_ocr=True)
     check("dependency check reports every tool", set(available) == {"pdftotext", "pdftoppm", "tesseract"},
           f"got {sorted(available)}")
-    check("install hint names the language pack", "tesseract-ocr-ben" in install_hint("bn"))
-    check("install hint is language-specific", "tesseract-ocr-asm" in install_hint("as"))
+    check("install hint names the language pack", "tesseract-ocr-hin" in install_hint("hi"))
+    check("install hint is language-specific", "tesseract-ocr-nep" in install_hint("ne"))
 
     if not available.get("pdftotext"):
         print("  SKIP  embedded-text extraction (pdftotext not installed)")
@@ -386,12 +435,37 @@ def test_ocr() -> None:
         print("  SKIP  embedded-text extraction (no sample PDF present)")
         return
 
-    extractor = PdfTextExtractor(OcrConfig(language="bn"))
+    # The sample PDF is the English assignment brief, so it is extracted under a
+    # language with no script profile. Using an Indic language here would - quite
+    # correctly - trip the text-layer quality gate, since English contains no
+    # Devanagari at all.
+    extractor = PdfTextExtractor(OcrConfig(language="en"))
     text, metadata = extractor.extract_document(sample_pdf)
     check("extracts text from a PDF text layer", len(text) > 1000, f"got {len(text)} chars")
     check("reports pages extracted", metadata["pages_extracted"] > 0, f"got {metadata['pages_extracted']}")
     check("prefers the embedded text layer over OCR", metadata["methods"].get("embedded", 0) > 0,
           f"methods={metadata['methods']}")
+
+    # The text-layer quality gate. This is the check that keeps a corrupt PDF out
+    # of the corpus: the supplied Hindi books all carry a text layer that is long
+    # but wrong, because a legacy font's broken ToUnicode map drops the i-matra
+    # entirely - किया extracts as कया. Length alone cannot detect that.
+    hi_extractor = PdfTextExtractor(OcrConfig(language="hi"))
+    good_hindi = "भारत एक विशाल देश है और यहाँ हिंदी बोली जाती है। उन्होंने कहा कि यह किया गया। " * 40
+    usable, metrics = hi_extractor.assess_text_layer(good_hindi)
+    check("accepts a clean Hindi text layer", usable, f"metrics={metrics}")
+
+    # Same text with every i-matra stripped, which is exactly the corruption seen.
+    broken_hindi = good_hindi.replace("\u093f", "")
+    usable, metrics = hi_extractor.assess_text_layer(broken_hindi)
+    check("rejects a text layer with no i-matra", not usable,
+          f"metrics={metrics}")
+    check("names the reason for rejection", metrics.get("reason") == "missing_imatra",
+          f"got {metrics.get('reason')}")
+
+    # Latin mojibake, the other failure mode of a broken font mapping.
+    usable, metrics = hi_extractor.assess_text_layer("Ȉ Æ ȱ ȳ Ȏ " * 200)
+    check("rejects Latin-Extended mojibake", not usable, f"metrics={metrics}")
 
 
 # --- checkpointing -------------------------------------------------------------

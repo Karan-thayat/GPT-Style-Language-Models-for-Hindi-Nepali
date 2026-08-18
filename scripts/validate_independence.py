@@ -38,7 +38,7 @@ from lma.data.splits import SPLIT_NAMES, iter_jsonl
 from lma.utils.logging_utils import setup_logging, write_json
 
 #: Language code -> (directory, human-readable model name).
-LANGUAGES = {"hi": ("hindi", "Model H (Hindi)"), "as": ("assamese", "Model L (Assamese)")}
+LANGUAGES = {"hi": ("hindi", "Model H (Hindi)"), "ne": ("nepali", "Model L (Nepali)")}
 
 _FAILURES: list[str] = []
 

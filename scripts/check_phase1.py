@@ -21,7 +21,7 @@ sys.path.insert(0, str(REPO_ROOT))
 from lma.utils.logging_utils import read_json
 
 #: Language code -> (directory, model label).
-LANGUAGES = {"hi": ("hindi", "Model H"), "as": ("assamese", "Model L")}
+LANGUAGES = {"hi": ("hindi", "Model H"), "ne": ("nepali", "Model L")}
 
 #: The manual-collection floor stated in the assignment.
 MANUAL_REQUIREMENT = 0.20

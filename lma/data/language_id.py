@@ -3,10 +3,15 @@
 Two very different problems live here, because the project's two languages sit in
 different Unicode blocks while the harder historical case does not.
 
-**Hindi vs Assamese - easy.** Devanagari (U+0900-U+097F) and Bengali-Assamese
-(U+0980-U+09FF) share no characters, so a script-share test separates them
-completely. Cross-contamination between Model H and Model L is therefore
-detectable with certainty rather than inference.
+**Different scripts - easy.** Devanagari (U+0900-U+097F) and Bengali-Assamese
+(U+0980-U+09FF) share no characters, so a script-share test separates a Devanagari
+language from a Bengali-script one completely.
+
+**Hindi vs Nepali - hard.** Both are Devanagari, so the script is no help, and
+being closely related Indo-Aryan languages they share much of their vocabulary
+too. The separation rests on grammar: copulas (Hindi है/हैं/था against Nepali
+छ/छन्/हो/थियो) and case markers (Hindi ने/को against Nepali ले/लाई), which are the
+highest-frequency words in any document and differ systematically.
 
 **Bengali vs Assamese - hard.** These share one script, so a script test cannot
 tell them apart and general-purpose language identifiers routinely label Assamese
@@ -36,9 +41,34 @@ _RE_DEVANAGARI = re.compile(r"[ऀ-ॿ]")
 _RE_BENGALI = re.compile(r"[ঀ-৿]")
 _RE_LETTER = re.compile(r"[^\W\d_]", re.UNICODE)
 _RE_BENGALI_TOKEN = re.compile(r"[ঀ-৿]+")
+_RE_DEVANAGARI_TOKEN = re.compile(r"[ऀ-ॿ]+")
 
 #: Which script each supported language is written in.
-LANGUAGE_SCRIPTS = {"hi": "devanagari", "as": "bengali", "bn": "bengali"}
+LANGUAGE_SCRIPTS = {"hi": "devanagari", "ne": "devanagari", "as": "bengali", "bn": "bengali"}
+
+#: Nepali function words that are rare or absent in Hindi. The copulas छ/छन्/हो
+#: and the case markers लाई/ले/को are the highest-frequency discriminators; a
+#: document of any real length will contain several.
+_NEPALI_MARKERS: frozenset[str] = frozenset(
+    {
+        "छ", "छन्", "छैन", "थियो", "थिए", "हो", "होइन", "हुन्", "हुन्छ",
+        "गरेको", "गर्ने", "गरे", "भएको", "भए", "भन्ने", "भन्दा", "लाग्छ",
+        "लाई", "ले", "पनि", "र", "तर", "अनि", "यो", "त्यो", "यस", "नेपाल",
+        "नेपाली", "काठमाडौं", "गर्न", "हुने", "रहेको", "सक्छ", "छु",
+    }
+)
+
+#: Hindi function words that are rare or absent in Nepali. Note the deliberate
+#: omission of forms both languages share (मैं, तुम, कुछ): including them would
+#: add noise without adding separating power.
+_HINDI_MARKERS: frozenset[str] = frozenset(
+    {
+        "है", "हैं", "था", "थे", "थी", "हूँ", "हुए", "होता", "होती",
+        "किया", "गया", "गयी", "करना", "करते", "रहा", "रही", "दिया",
+        "और", "लेकिन", "परन्तु", "भी", "ने", "को", "का", "की", "के",
+        "यह", "वह", "इस", "उस", "नहीं", "भारत", "हिंदी", "हिन्दी", "दिल्ली",
+    }
+)
 
 #: Assamese function words and high-frequency forms with Bengali counterparts.
 _ASSAMESE_MARKERS: frozenset[str] = frozenset(
@@ -73,6 +103,9 @@ class LanguageVerdict:
     language: str
     assamese_score: float = 0.0
     bengali_score: float = 0.0
+    #: Scores for the Devanagari pair, populated when the script is Devanagari.
+    hindi_score: float = 0.0
+    nepali_score: float = 0.0
     evidence_tokens: int = 0
     script: str = "unknown"
 
@@ -128,10 +161,32 @@ class IndicLanguageIdentifier:
         script = self.detect_script(text)
 
         if script == "devanagari":
-            tokens = len(text.split())
-            if tokens < self.min_tokens:
-                return LanguageVerdict("unknown", evidence_tokens=tokens, script=script)
-            return LanguageVerdict("hi", evidence_tokens=tokens, script=script)
+            tokens = _RE_DEVANAGARI_TOKEN.findall(text)
+            n_tokens = len(tokens)
+            if n_tokens < self.min_tokens:
+                return LanguageVerdict("unknown", evidence_tokens=n_tokens, script=script)
+
+            # Hindi and Nepali share the script and much vocabulary, so the
+            # decision rests on grammar: copulas and case markers are the most
+            # frequent words in any document and differ systematically.
+            hi_hits = sum(1 for token in tokens if token in _HINDI_MARKERS)
+            ne_hits = sum(1 for token in tokens if token in _NEPALI_MARKERS)
+            hi_score = hi_hits / n_tokens
+            ne_score = ne_hits / n_tokens
+
+            if ne_score - hi_score >= self.min_margin:
+                language = "ne"
+            elif hi_score - ne_score >= self.min_margin:
+                language = "hi"
+            else:
+                language = "unknown"
+            return LanguageVerdict(
+                language,
+                hindi_score=hi_score,
+                nepali_score=ne_score,
+                evidence_tokens=n_tokens,
+                script=script,
+            )
 
         if script != "bengali":
             return LanguageVerdict("unknown", script=script)

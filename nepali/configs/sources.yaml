@@ -1,0 +1,121 @@
+# Nepali (Model L) corpus source manifest
+#
+# Model L must come from the assignment's permitted lower-resource list; Nepali is
+# chosen from it. The resource gap against Hindi is real and quantifiable: AI4Bharat
+# Sangraha carries 25 verified Nepali shards against 100 for Hindi, and Nepali
+# Wikipedia is a fraction of the size of Hindi's.
+#
+# Nepali is written in Devanagari - the SAME script as Hindi. That makes this pair
+# harder to keep separate than a cross-script pair would be: a script check cannot
+# tell the two apart, and as closely related Indo-Aryan languages they share much
+# vocabulary. Separation therefore rests on grammar (see lma/data/language_id.py):
+# Nepali copulas छ/छन्/हो/थियो against Hindi है/हैं/था, and case markers ले/लाई
+# against ने/को. Every document is checked, because Hindi text leaking into this
+# corpus is the likeliest way to violate the independence constraint.
+
+language: ne
+language_name: Nepali
+model: L
+tier: lower-resource
+
+sources:
+  # --- Downloaded public corpora -------------------------------------------
+  - source_id: wikipedia_ne
+    type: huggingface
+    dataset: wikimedia/wikipedia
+    config: 20231101.ne
+    split: train
+    text_field: text
+    collection: downloaded
+    enabled: true
+    # Capped so manually collected text can clear the >=20% share the assignment
+    # requires. Raise in step with manual collection.
+    limit: 1500
+    notes: >
+      Nepali Wikipedia - small but the cleanest available Nepali text.
+
+  - source_id: sangraha_ne
+    type: huggingface
+    dataset: ai4bharat/sangraha
+    # 25 shards exist for Nepali; widen to 'verified/nep/*.parquet' at full scale.
+    data_files: verified/nep/data-0.parquet
+    split: train
+    text_field: text
+    collection: downloaded
+    enabled: true
+    limit: 3500
+    notes: >
+      AI4Bharat Sangraha verified Nepali split. The largest curated open Nepali
+      corpus, and still far short of Hindi's volume - which is the resource-tier
+      contrast this project is built to study.
+
+  # --- Manually collected: OCR ---------------------------------------------
+  - source_id: manual_ocr_ne
+    type: local
+    collection: manual
+    enabled: true
+    path: nepali/data/raw/ocr
+    glob: '**/*.jsonl'
+    text_field: text
+    notes: >
+      Output of `scripts/run_ocr.py --language ne`. Put PDFs in
+      nepali/data/raw/pdf and run the script. OCR is the highest-leverage manual
+      source: one 300-page book yields ~80,000 words against ~900 for a scraped
+      web page. Needs tesseract-ocr-nep for scanned PDFs.
+
+  - source_id: manual_typed_ne
+    type: local
+    collection: manual
+    enabled: true
+    path: nepali/data/raw/typed
+    glob: '**/*.txt'
+    split_on_blank_lines: true
+    notes: >
+      Hand-typed or transcribed Nepali text, blank-line separated.
+
+  # --- Manually collected: web scraping ------------------------------------
+  - source_id: manual_scrape_wikisource_ne
+    type: scrape
+    collection: manual
+    enabled: true
+    start_urls:
+      # मुख्य पृष्ठ = the Nepali Wikisource main page.
+      - https://ne.wikisource.org/wiki/%E0%A4%AE%E0%A5%81%E0%A4%96%E0%A5%8D%E0%A4%AF_%E0%A4%AA%E0%A5%83%E0%A4%B7%E0%A5%8D%E0%A4%A0
+    allow_patterns:
+      - 'ne\.wikisource\.org/wiki/'
+    deny_patterns:
+      - 'action='
+      - 'oldid='
+      - 'Special:'
+      - 'सहायता:'
+      - 'प्रयोगकर्ता:'
+      - 'वार्तालाप:'
+    content_selector: '#mw-content-text'
+    max_pages: 2000
+    max_depth: 5
+    delay_seconds: 1.0
+    cache_dir: nepali/data/raw/scrape_cache
+    notes: >
+      Nepali Wikisource: public-domain Nepali literature. Genuinely Nepali
+      orthography and grammar, so it doubles as a positive control for the
+      Hindi-vs-Nepali identity filter. Pages are cached, so re-runs replay
+      instantly and only new URLs pay the rate limit.
+
+  - source_id: manual_scrape_custom_ne
+    type: scrape
+    collection: manual
+    enabled: false
+    start_urls:
+      - https://example.com/replace-me
+    allow_patterns: []
+    deny_patterns: []
+    content_selector: null
+    max_pages: 2000
+    max_depth: 3
+    delay_seconds: 1.5
+    cache_dir: nepali/data/raw/scrape_cache
+    notes: >
+      TEMPLATE - add your own Nepali sites here. Because open Nepali data is
+      scarce, manual collection is where Model L's corpus is won or lost. Check
+      robots.txt and terms first; the crawler honours robots.txt and rate-limits,
+      but permission to collect is your responsibility.

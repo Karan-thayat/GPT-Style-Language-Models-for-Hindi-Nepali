@@ -7,9 +7,9 @@ scratch in PyTorch, with separate datasets, tokenizers, vocabularies, and weight
 
 | | Model H (higher-resource) | Model L (lower-resource) |
 |---|---|---|
-| Language | **Bengali** (`bn`) | **Assamese** (`as`) |
-| Directory | [`bengali/`](bengali/) | [`assamese/`](assamese/) |
-| Script | Bengali-Assamese | Bengali-Assamese |
+| Language | **Hindi** (`hi`) | **Nepali** (`ne`) |
+| Directory | [`hindi/`](hindi/) | [`nepali/`](nepali/) |
+| Script | Devanagari | Devanagari |
 | Corpus | own, independent | own, independent |
 | Tokenizer / vocabulary | own, not shared | own, not shared |
 

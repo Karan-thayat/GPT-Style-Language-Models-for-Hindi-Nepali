@@ -168,12 +168,20 @@ class NormalizerConfig:
             raise ValueError(f"script must be 'devanagari' or 'bengali', got {self.script!r}")
 
 
-#: Ready-made profiles. Hindi is Model H (higher-resource); Assamese is Model L.
+#: Ready-made profiles. Hindi is Model H (higher-resource); Nepali is Model L.
+#: Both are Devanagari, so they share the same normalization rules entirely -
+#: the languages differ in grammar and vocabulary, not orthographic convention.
 HINDI_PROFILE = NormalizerConfig(language="hi", script="devanagari")
+NEPALI_PROFILE = NormalizerConfig(language="ne", script="devanagari")
 ASSAMESE_PROFILE = NormalizerConfig(language="as", script="bengali", preserve_assamese_letters=True)
 BENGALI_PROFILE = NormalizerConfig(language="bn", script="bengali", preserve_assamese_letters=False)
 
-_PROFILES = {"hi": HINDI_PROFILE, "as": ASSAMESE_PROFILE, "bn": BENGALI_PROFILE}
+_PROFILES = {
+    "hi": HINDI_PROFILE,
+    "ne": NEPALI_PROFILE,
+    "as": ASSAMESE_PROFILE,
+    "bn": BENGALI_PROFILE,
+}
 
 #: Default writing system per language, for callers that need the script but
 #: not a whole normalizer profile.

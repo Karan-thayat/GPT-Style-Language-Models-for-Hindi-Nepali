@@ -20,10 +20,11 @@ matplotlib.use("Agg")  # Headless: figures are written to disk, never displayed.
 import matplotlib.pyplot as plt
 
 #: One consistent colour per language across every figure in the report.
-LANGUAGE_COLORS = {"hi": "#1f77b4", "as": "#d62728", "bn": "#2ca02c"}
+LANGUAGE_COLORS = {"hi": "#1f77b4", "ne": "#d62728", "as": "#9467bd", "bn": "#2ca02c"}
 LANGUAGE_LABELS = {
     "hi": "Hindi (Model H)",
-    "as": "Assamese (Model L)",
+    "ne": "Nepali (Model L)",
+    "as": "Assamese",
     "bn": "Bengali",
 }
 
@@ -133,7 +134,7 @@ def plot_corpus_size_comparison(stats_by_language: dict[str, dict], output_path:
         ax.grid(True, alpha=0.3, linestyle="--", axis="y")
         ax.tick_params(axis="x", labelsize=8)
 
-    fig.suptitle("Corpus size comparison: Hindi (higher-resource) vs Assamese (lower-resource)",
+    fig.suptitle("Corpus size comparison: Hindi (higher-resource) vs Nepali (lower-resource)",
                  fontsize=12, fontweight="bold")
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
