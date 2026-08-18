@@ -128,8 +128,14 @@ class LocalFileSource:
     Supported layouts:
 
     * ``.jsonl`` / ``.jsonl.gz`` - one JSON object per line with a text field.
-    * ``.txt`` - the whole file is one document, unless `split_on_blank_lines`
-      is set, in which case blank-line-separated blocks become documents.
+    * ``.txt`` - the whole file is one document by default. Set
+      `split_on_blank_lines` for blank-line-separated blocks (typical of OCR page
+      dumps), or `one_document_per_line` for large corpus files that put one
+      document on each line.
+
+    `one_document_per_line` streams rather than reading the file whole, which is
+    what makes multi-gigabyte corpora usable: reading a 5.9 GB file into memory is
+    not an option on a machine with 7 GB of RAM.
 
     This is how OCR'd books enter the pipeline: run OCR with any tool, write the
     text out here, and point the manifest at the directory.
@@ -150,6 +156,12 @@ class LocalFileSource:
     text_field: str = "text"
     collection: str = "manual"
     split_on_blank_lines: bool = False
+    #: Treat each line of a ``.txt`` file as one document, streaming rather than
+    #: loading the file. Required for large corpus dumps; see the class docstring.
+    one_document_per_line: bool = False
+    #: Skip lines shorter than this before they reach the cleaner. Cheap guard
+    #: against the stray blank or truncated lines common in bulk corpus files.
+    min_line_chars: int = 50
 
     def _iter_paths(self) -> Iterator[Path]:
         """Yield the concrete files this source covers."""
@@ -184,6 +196,18 @@ class LocalFileSource:
                             emitted += 1
                             if limit is not None and emitted >= limit:
                                 return
+                elif self.one_document_per_line:
+                    # Streaming path: never materialize the file. A 5.9 GB corpus
+                    # read whole would exhaust memory long before any document
+                    # reached the cleaner.
+                    for line in handle:
+                        line = line.strip()
+                        if len(line) < self.min_line_chars:
+                            continue
+                        yield Document(line, self.source_id, self.collection, str(file_path))
+                        emitted += 1
+                        if limit is not None and emitted >= limit:
+                            return
                 else:
                     content = handle.read()
                     blocks = re.split(r"\n\s*\n", content) if self.split_on_blank_lines else [content]

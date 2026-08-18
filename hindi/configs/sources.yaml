@@ -1,151 +1,130 @@
-# Hindi (Model H) corpus source manifest
-#
-# Model H is the higher-resource, non-English Indian language. Hindi is chosen
-# because it has by far the most abundant public text of any Indian language:
-# ~528M speakers in India (2011 Census), the largest Indic Wikipedia, and 100
-# verified shards in AI4Bharat Sangraha against Bengali's 77.
-#
-# Hindi is written in Devanagari (U+0900-U+097F), while Model L (Assamese) uses
-# the Bengali-Assamese block (U+0980-U+09FF). The two scripts share no
-# characters, so cross-contamination between the corpora is detectable with
-# certainty by a script check rather than by inference - a stronger guarantee of
-# the independence the project requires than a same-script pair could give.
-#
-# `collection` semantics:
-#   downloaded -> public corpora pulled from a hub
-#   manual     -> text this project collected itself (scraped or OCR'd)
-#
-# Manual sources must supply >= 20% of final training tokens. Downloaded sources
-# are capped below to preserve that ratio; see the note on wikipedia_hi.
-
 language: hi
 language_name: Hindi
 model: H
 tier: higher-resource
-
 sources:
-  # --- Downloaded public corpora -------------------------------------------
-  - source_id: wikipedia_hi
-    type: huggingface
-    dataset: wikimedia/wikipedia
-    config: 20231101.hi
-    split: train
-    text_field: text
-    collection: downloaded
-    enabled: true
-    # Downloaded sources are capped to hold the manual share above the 20% floor.
-    # The assignment permits a documented shortfall on the ~500M token target but
-    # states the manual fraction as "at least 20%", with no equivalent escape
-    # clause - so the ratio is treated as the hard constraint and total corpus
-    # size follows from how much manual text exists.
-    #
-    # Raise these caps in step with manual collection: every ~275-word OCR'd page
-    # supports roughly five times its own words of downloaded text.
-    limit: 1500
-    notes: >
-      Hindi Wikipedia. Clean encyclopedic prose and a good normalization
-      baseline, but stylistically narrow - it must not dominate the corpus.
+- source_id: wikipedia_hi
+  type: huggingface
+  dataset: wikimedia/wikipedia
+  config: 20231101.hi
+  split: train
+  text_field: text
+  collection: downloaded
+  enabled: true
+  limit: 2000
+  notes: 'Hindi Wikipedia, kept enabled for register variety: IndicCorp is news and
+    web text, so encyclopedic prose broadens what Model H sees. Capped small because
+    the downloaded budget is shared - at ~1,240 words per article this contributes
+    ~2.5M words, leaving the rest for IndicCorp.'
+- source_id: sangraha_hi
+  type: huggingface
+  dataset: ai4bharat/sangraha
+  data_files: verified/hin/data-0.parquet
+  split: train
+  text_field: text
+  collection: downloaded
+  enabled: false
+  limit: 3500
+  notes: 'DISABLED. Superseded by the local indiccorp.txt below: both are AI4Bharat
+    web/news corpora with substantial overlap, so enabling both would pay download
+    and processing cost for text that deduplication then discards. Re-enable if you
+    need volume beyond what the local file provides.'
+- source_id: oscar_hi
+  type: huggingface
+  dataset: oscar-corpus/OSCAR-2301
+  config: hi
+  split: train
+  text_field: text
+  collection: downloaded
+  enabled: false
+  notes: 'OSCAR-2301 Hindi. Gated - accept the terms on the Hub and run `huggingface-cli
+    login`, then set enabled: true. Noisier than Sangraha, so the cleaning thresholds
+    matter more here.
 
-  - source_id: sangraha_hi
-    type: huggingface
-    dataset: ai4bharat/sangraha
-    # Sangraha's configs are verified/unverified/synthetic with the language as a
-    # subdirectory, so the language is selected by file pattern, not config name.
-    # 100 shards exist for Hindi; widen to 'verified/hin/*.parquet' at full scale.
-    data_files: verified/hin/data-0.parquet
-    split: train
-    text_field: text
-    collection: downloaded
-    enabled: true
-    limit: 3500
-    notes: >
-      AI4Bharat Sangraha verified Hindi split - large, deduplicated web and news
-      text. The main volume driver once the caps are raised.
+    '
+- source_id: indiccorp_hi
+  type: local
+  path: hindi/data/raw/indiccorp.txt
+  collection: downloaded
+  enabled: true
+  one_document_per_line: true
+  min_line_chars: 200
+  limit: 20000
+  notes: 'AI4Bharat IndicCorp Hindi, held locally as a 5.9 GB plain-text file: 1,121,202
+    documents, 480M raw words, one document per line. Measured keep rate 96.8% and
+    99.7% correctly identified as Hindi, so essentially all of it is usable - the
+    full file alone yields ~880M tokens, 176% of the target.
 
-  - source_id: oscar_hi
-    type: huggingface
-    dataset: oscar-corpus/OSCAR-2301
-    config: hi
-    split: train
-    text_field: text
-    collection: downloaded
-    enabled: false
-    notes: >
-      OSCAR-2301 Hindi. Gated - accept the terms on the Hub and run
-      `huggingface-cli login`, then set enabled: true. Noisier than Sangraha, so
-      the cleaning thresholds matter more here.
+    The `limit` is therefore NOT about data quality or availability. It exists to
+    hold manually collected text above the 20% floor the assignment requires: with
+    ~2.7M OCR''d words, downloaded text can be at most ~10.9M words. Raise this cap
+    in step with OCR collection - every additional book of ~2,860 pages supports roughly
+    3.8M more words of downloaded text.'
+- source_id: manual_ocr_hi
+  type: local
+  collection: manual
+  enabled: true
+  path: hindi/data/raw/ocr
+  glob: '**/*.jsonl'
+  text_field: text
+  notes: 'Output of `scripts/run_ocr.py --language hi`. Put PDFs in hindi/data/raw/pdf
+    and run the script; the JSONL lands here and is picked up automatically on the
+    next corpus build. PDFs with an embedded text layer extract in seconds; scanned
+    PDFs need tesseract-ocr-hin and take ~2-5 seconds per page.
 
-  # --- Manually collected: OCR ---------------------------------------------
-  # OCR is the highest-leverage manual source: one 300-page book yields roughly
-  # 80,000 words, against ~889 words for a scraped web page. Reaching 20% manual
-  # on a large corpus is far more practical through books than through crawling.
-  - source_id: manual_ocr_hi
-    type: local
-    collection: manual
-    enabled: true
-    path: hindi/data/raw/ocr
-    glob: '**/*.jsonl'
-    text_field: text
-    notes: >
-      Output of `scripts/run_ocr.py --language hi`. Put PDFs in
-      hindi/data/raw/pdf and run the script; the JSONL lands here and is picked
-      up automatically on the next corpus build. PDFs with an embedded text
-      layer extract in seconds; scanned PDFs need tesseract-ocr-hin and take
-      ~2-5 seconds per page.
+    '
+- source_id: manual_typed_hi
+  type: local
+  collection: manual
+  enabled: true
+  path: hindi/data/raw/typed
+  glob: '**/*.txt'
+  split_on_blank_lines: true
+  notes: 'Hand-typed or transcribed Hindi text. Blank-line-separated blocks each become
+    one document.
 
-  - source_id: manual_typed_hi
-    type: local
-    collection: manual
-    enabled: true
-    path: hindi/data/raw/typed
-    glob: '**/*.txt'
-    split_on_blank_lines: true
-    notes: >
-      Hand-typed or transcribed Hindi text. Blank-line-separated blocks each
-      become one document.
+    '
+- source_id: manual_scrape_wikisource_hi
+  type: scrape
+  collection: manual
+  enabled: true
+  start_urls:
+  - https://hi.wikisource.org/wiki/%E0%A4%AE%E0%A5%81%E0%A4%96%E0%A4%AA%E0%A5%83%E0%A4%B7%E0%A5%8D%E0%A4%A0
+  allow_patterns:
+  - hi\.wikisource\.org/wiki/
+  deny_patterns:
+  - action=
+  - oldid=
+  - 'Special:'
+  - 'सहायता:'
+  - 'सदस्य:'
+  - 'वार्ता:'
+  content_selector: '#mw-content-text'
+  max_pages: 2000
+  max_depth: 5
+  delay_seconds: 1.0
+  cache_dir: hindi/data/raw/scrape_cache
+  notes: 'Hindi Wikisource: public-domain books and literature. Long-form literary
+    prose, balancing the encyclopedic and news registers. Pages are cached, so re-runs
+    replay instantly and only new URLs pay the rate limit.
 
-  # --- Manually collected: web scraping ------------------------------------
-  - source_id: manual_scrape_wikisource_hi
-    type: scrape
-    collection: manual
-    enabled: true
-    start_urls:
-      # मुखपृष्ठ = the Hindi Wikisource main page.
-      - https://hi.wikisource.org/wiki/%E0%A4%AE%E0%A5%81%E0%A4%96%E0%A4%AA%E0%A5%83%E0%A4%B7%E0%A5%8D%E0%A4%A0
-    allow_patterns:
-      - 'hi\.wikisource\.org/wiki/'
-    deny_patterns:
-      - 'action='
-      - 'oldid='
-      - 'Special:'
-      - 'सहायता:'
-      - 'सदस्य:'
-      - 'वार्ता:'
-    content_selector: '#mw-content-text'
-    max_pages: 2000
-    max_depth: 5
-    delay_seconds: 1.0
-    cache_dir: hindi/data/raw/scrape_cache
-    notes: >
-      Hindi Wikisource: public-domain books and literature. Long-form literary
-      prose, balancing the encyclopedic and news registers. Pages are cached, so
-      re-runs replay instantly and only new URLs pay the rate limit.
+    '
+- source_id: manual_scrape_custom_hi
+  type: scrape
+  collection: manual
+  enabled: false
+  start_urls:
+  - https://example.com/replace-me
+  allow_patterns: []
+  deny_patterns: []
+  content_selector: null
+  max_pages: 2000
+  max_depth: 3
+  delay_seconds: 1.5
+  cache_dir: hindi/data/raw/scrape_cache
+  notes: 'TEMPLATE - add your own site here. Check the site''s robots.txt and terms
+    first; the crawler honours robots.txt and rate-limits, but permission to collect
+    is your responsibility. Leaving content_selector null uses the densest-text-block
+    heuristic, which works for most news layouts.
 
-  - source_id: manual_scrape_custom_hi
-    type: scrape
-    collection: manual
-    enabled: false
-    start_urls:
-      - https://example.com/replace-me
-    allow_patterns: []
-    deny_patterns: []
-    content_selector: null
-    max_pages: 2000
-    max_depth: 3
-    delay_seconds: 1.5
-    cache_dir: hindi/data/raw/scrape_cache
-    notes: >
-      TEMPLATE - add your own site here. Check the site's robots.txt and terms
-      first; the crawler honours robots.txt and rate-limits, but permission to
-      collect is your responsibility. Leaving content_selector null uses the
-      densest-text-block heuristic, which works for most news layouts.
+    '
