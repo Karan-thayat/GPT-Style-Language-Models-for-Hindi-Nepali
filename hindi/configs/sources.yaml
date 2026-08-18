@@ -182,6 +182,188 @@ sources:
     so re-runs replay instantly and only new URLs pay the 1 req/s rate limit. Check
     this site''s terms of use yourself - the crawler honours robots.txt and rate-limits,
     but permission to collect is the student''s responsibility.'
+- source_id: manual_news_aajtak_hi
+  type: scrape
+  collection: manual
+  enabled: true
+  start_urls:
+  - https://www.aajtak.in/
+  allow_patterns:
+  - aajtak\.in/
+  deny_patterns:
+  - /photo
+  - /video
+  - /tag/
+  - /author/
+  - \?
+  - /live-
+  - /web-stories
+  content_selector: null
+  max_pages: 30000
+  max_depth: 6
+  delay_seconds: 1.0
+  cache_dir: hindi/data/raw/scrape_cache
+  notes: 'News crawl of aajtak, added to raise aggregate manual-collection throughput:
+    the rate limit is per host, so words per hour scales with the number of sites.
+    Counted as manual - the assignment names scraping pages you gather yourself as
+    manual collection. Verify the site''s terms of use yourself; the crawler honours
+    robots.txt and rate-limits, but permission to collect is the student''s own.'
+- source_id: manual_news_abplive_hi
+  type: scrape
+  collection: manual
+  enabled: true
+  start_urls:
+  - https://www.abplive.com/
+  allow_patterns:
+  - abplive\.com/
+  deny_patterns:
+  - /photo
+  - /video
+  - /tag/
+  - /author/
+  - \?
+  - /live-
+  - /web-stories
+  content_selector: null
+  max_pages: 30000
+  max_depth: 6
+  delay_seconds: 1.0
+  cache_dir: hindi/data/raw/scrape_cache
+  notes: 'News crawl of abplive, added to raise aggregate manual-collection throughput:
+    the rate limit is per host, so words per hour scales with the number of sites.
+    Counted as manual - the assignment names scraping pages you gather yourself as
+    manual collection. Verify the site''s terms of use yourself; the crawler honours
+    robots.txt and rate-limits, but permission to collect is the student''s own.'
+- source_id: manual_news_news18_hi
+  type: scrape
+  collection: manual
+  enabled: true
+  start_urls:
+  - https://hindi.news18.com/
+  allow_patterns:
+  - hindi\.news18\.com/
+  deny_patterns:
+  - /photo
+  - /video
+  - /tag/
+  - /author/
+  - \?
+  - /live-
+  - /web-stories
+  content_selector: null
+  max_pages: 30000
+  max_depth: 6
+  delay_seconds: 1.0
+  cache_dir: hindi/data/raw/scrape_cache
+  notes: 'News crawl of news18, added to raise aggregate manual-collection throughput:
+    the rate limit is per host, so words per hour scales with the number of sites.
+    Counted as manual - the assignment names scraping pages you gather yourself as
+    manual collection. Verify the site''s terms of use yourself; the crawler honours
+    robots.txt and rate-limits, but permission to collect is the student''s own.'
+- source_id: manual_news_patrika_hi
+  type: scrape
+  collection: manual
+  enabled: true
+  start_urls:
+  - https://www.patrika.com/
+  allow_patterns:
+  - patrika\.com/
+  deny_patterns:
+  - /photo
+  - /video
+  - /tag/
+  - /author/
+  - \?
+  - /live-
+  - /web-stories
+  content_selector: null
+  max_pages: 30000
+  max_depth: 6
+  delay_seconds: 1.0
+  cache_dir: hindi/data/raw/scrape_cache
+  notes: 'News crawl of patrika, added to raise aggregate manual-collection throughput:
+    the rate limit is per host, so words per hour scales with the number of sites.
+    Counted as manual - the assignment names scraping pages you gather yourself as
+    manual collection. Verify the site''s terms of use yourself; the crawler honours
+    robots.txt and rate-limits, but permission to collect is the student''s own.'
+- source_id: manual_news_naidunia_hi
+  type: scrape
+  collection: manual
+  enabled: true
+  start_urls:
+  - https://www.naidunia.com/
+  allow_patterns:
+  - naidunia\.com/
+  deny_patterns:
+  - /photo
+  - /video
+  - /tag/
+  - /author/
+  - \?
+  - /live-
+  - /web-stories
+  content_selector: null
+  max_pages: 30000
+  max_depth: 6
+  delay_seconds: 1.0
+  cache_dir: hindi/data/raw/scrape_cache
+  notes: 'News crawl of naidunia, added to raise aggregate manual-collection throughput:
+    the rate limit is per host, so words per hour scales with the number of sites.
+    Counted as manual - the assignment names scraping pages you gather yourself as
+    manual collection. Verify the site''s terms of use yourself; the crawler honours
+    robots.txt and rate-limits, but permission to collect is the student''s own.'
+- source_id: manual_news_prabhatkhabar_hi
+  type: scrape
+  collection: manual
+  enabled: true
+  start_urls:
+  - https://www.prabhatkhabar.com/
+  allow_patterns:
+  - prabhatkhabar\.com/
+  deny_patterns:
+  - /photo
+  - /video
+  - /tag/
+  - /author/
+  - \?
+  - /live-
+  - /web-stories
+  content_selector: null
+  max_pages: 30000
+  max_depth: 6
+  delay_seconds: 1.0
+  cache_dir: hindi/data/raw/scrape_cache
+  notes: 'News crawl of prabhatkhabar, added to raise aggregate manual-collection
+    throughput: the rate limit is per host, so words per hour scales with the number
+    of sites. Counted as manual - the assignment names scraping pages you gather yourself
+    as manual collection. Verify the site''s terms of use yourself; the crawler honours
+    robots.txt and rate-limits, but permission to collect is the student''s own.'
+- source_id: manual_news_punjabkesari_hi
+  type: scrape
+  collection: manual
+  enabled: true
+  start_urls:
+  - https://www.punjabkesari.in/
+  allow_patterns:
+  - punjabkesari\.in/
+  deny_patterns:
+  - /photo
+  - /video
+  - /tag/
+  - /author/
+  - \?
+  - /live-
+  - /web-stories
+  content_selector: null
+  max_pages: 30000
+  max_depth: 6
+  delay_seconds: 1.0
+  cache_dir: hindi/data/raw/scrape_cache
+  notes: 'News crawl of punjabkesari, added to raise aggregate manual-collection throughput:
+    the rate limit is per host, so words per hour scales with the number of sites.
+    Counted as manual - the assignment names scraping pages you gather yourself as
+    manual collection. Verify the site''s terms of use yourself; the crawler honours
+    robots.txt and rate-limits, but permission to collect is the student''s own.'
 - source_id: manual_ocr_hi
   type: local
   collection: manual
