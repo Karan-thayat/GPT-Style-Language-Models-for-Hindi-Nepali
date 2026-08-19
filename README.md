@@ -13,10 +13,12 @@ scratch in PyTorch, with separate datasets, tokenizers, vocabularies, and weight
 | Corpus | own, independent | own, independent |
 | Tokenizer / vocabulary | own, not shared | own, not shared |
 
-> Assamese is on the project's permitted lower-resource list. Bengali and Assamese
-> share a script, which is deliberate: holding the writing system constant isolates
-> **data scale and quality** as the variable under study. It also creates the main
-> data-integrity hazard — see [Cross-language contamination](#cross-language-contamination).
+> Nepali is on the project's permitted lower-resource list. Hindi and Nepali share
+> the Devanagari script, which is deliberate: holding the writing system constant
+> isolates **data scale and quality** as the variable under study. It also creates the
+> main data-integrity hazard — the two languages share not only a script but much
+> vocabulary, so they cannot be separated by a script check. See
+> [Cross-language contamination](#cross-language-contamination).
 
 ---
 
@@ -24,17 +26,25 @@ scratch in PyTorch, with separate datasets, tokenizers, vocabularies, and weight
 
 | Phase | Branch | Status |
 |---|---|---|
-| **Phase 1** — Data collection and tokenizer construction | `phase-1` | **Complete** (verified on the `sampled` profile) |
+| **Phase 1** — Data collection and tokenizer construction | `phase-1` | **Complete** — 20/20 checks, built on the `full` profile |
 | Phase 2 — Model implementation, pretraining, evaluation | `phase-2` | Not started |
 | Phase 3 — Reasoning finetuning, attention analysis, final report | `phase-3` | Not started |
 
 **Phase 1 report:** [`report/phase1_report.md`](report/phase1_report.md) — all
 dataset statistics, tokenizer metrics, tables, and figures.
 
-The full pipeline is implemented and has been executed end to end on the `sampled`
-profile, which produced every statistic, tokenizer, and figure in the report. The
-`full` profile runs the same code against the ~500M-token target; see
-[Run profiles](#run-profiles).
+Both corpora were built end to end on the `full` profile and both exceed the
+~500M-token target:
+
+| | Training tokens | Manual tokens | Manual share |
+|---|---:|---:|---:|
+| **Hindi** (Model H) | 578,319,564 | 124,910,381 | **21.6%** |
+| **Nepali** (Model L) | 610,989,716 | 364,830,857 | **59.7%** |
+
+The manual share is measured **in training tokens**, as the assignment specifies.
+Manually collected prose tokenizes at a different rate to downloaded web text, so
+the token share and the word share differ — Hindi is 21.6% manual by token and
+19.1% by word.
 
 Verify the state of any checkout with:
 
@@ -51,8 +61,8 @@ Verify the state of any checkout with:
 ```
 ├── lma/                          # Shared, language-agnostic implementation
 │   ├── data/
-│   │   ├── normalize.py          # Script-aware Unicode normalization (bn vs as)
-│   │   ├── language_id.py        # Bengali-vs-Assamese discrimination
+│   │   ├── normalize.py          # Script-aware Unicode normalization (hi vs ne)
+│   │   ├── language_id.py        # Hindi-vs-Nepali discrimination (grammar-based)
 │   │   ├── clean.py              # Quality filters + MinHash/LSH deduplication
 │   │   ├── sources.py            # HF streaming, web scraping, local/OCR sources
 │   │   ├── ocr.py                # PDF/book OCR ingestion
@@ -66,7 +76,7 @@ Verify the state of any checkout with:
 │   │   └── plots.py              # All figures (computation-free)
 │   └── utils/logging_utils.py
 │
-├── bengali/                      # Model H — self-contained
+├── hindi/                        # Model H — self-contained
 │   ├── configs/pipeline.yaml     # Cleaning, splits, tokenizer, run profiles
 │   ├── configs/sources.yaml      # Corpus source manifest
 │   ├── data/processed/           # bn_{train,validation,test}.jsonl
@@ -74,7 +84,7 @@ Verify the state of any checkout with:
 │   ├── reports/                  # Per-stage JSON statistics
 │   └── logs/                     # Timestamped run logs
 │
-├── assamese/                     # Model L — self-contained, same structure
+├── nepali/                       # Model L — self-contained, same structure
 │
 ├── scripts/                      # Executable pipeline stages
 │   ├── test_pipeline.py          # Component self-tests (84 assertions)
@@ -111,14 +121,14 @@ python -m venv .venv
 .venv/bin/python scripts/test_pipeline.py
 
 # Build both corpora, train both tokenizers, and regenerate the report
-.venv/bin/python scripts/build_corpus.py --config bengali/configs/pipeline.yaml \
-    --sources bengali/configs/sources.yaml --profile sampled
-.venv/bin/python scripts/build_corpus.py --config assamese/configs/pipeline.yaml \
-    --sources assamese/configs/sources.yaml --profile sampled
-.venv/bin/python scripts/train_tokenizer.py --config bengali/configs/pipeline.yaml --sweep
-.venv/bin/python scripts/train_tokenizer.py --config assamese/configs/pipeline.yaml --sweep
-.venv/bin/python scripts/tokenize_corpus.py --config bengali/configs/pipeline.yaml
-.venv/bin/python scripts/tokenize_corpus.py --config assamese/configs/pipeline.yaml
+.venv/bin/python scripts/build_corpus.py --config hindi/configs/pipeline.yaml \
+    --sources hindi/configs/sources.yaml --profile full
+.venv/bin/python scripts/build_corpus.py --config nepali/configs/pipeline.yaml \
+    --sources nepali/configs/sources.yaml --profile full
+.venv/bin/python scripts/train_tokenizer.py --config hindi/configs/pipeline.yaml --sweep
+.venv/bin/python scripts/train_tokenizer.py --config nepali/configs/pipeline.yaml --sweep
+.venv/bin/python scripts/tokenize_corpus.py --config hindi/configs/pipeline.yaml
+.venv/bin/python scripts/tokenize_corpus.py --config nepali/configs/pipeline.yaml
 .venv/bin/python scripts/make_report.py
 ```
 
@@ -140,7 +150,7 @@ from a single shard (`verified/ben/data-0.parquet`) to all of them
 
 ## Running at full scale (~500M tokens)
 
-**Measured cost for the Bengali 500M ingest:** ~13.5 hours of CPU at 38k chars/sec,
+**Measured cost for the Hindi 500M ingest:** ~58 minutes of CPU on an 8-core laptop,
 streaming ~30 GB of Parquet across 77 shards. On a laptop with 7 GB RAM the
 deduplication index — one MinHash signature per kept document — will exhaust memory
 long before the run finishes. **Use Colab**, not a laptop.
@@ -155,9 +165,9 @@ and work through it top to bottom.
 The ingest checkpoints, because a multi-hour run *will* be interrupted:
 
 ```bash
-python scripts/build_corpus.py --config bengali/configs/pipeline.yaml \
-    --sources bengali/configs/sources.yaml --profile full \
-    --checkpoint-dir /content/drive/MyDrive/lma_project/bengali/checkpoints \
+python scripts/build_corpus.py --config hindi/configs/pipeline.yaml \
+    --sources hindi/configs/sources.yaml --profile full \
+    --checkpoint-dir /content/drive/MyDrive/lma_project/hindi/checkpoints \
     --checkpoint-every 25000 --resume
 ```
 
@@ -181,8 +191,8 @@ rename), so a process killed mid-save leaves the previous checkpoint intact.
 
 ### Two things that change at full scale
 
-1. **Assamese will not reach 500M.** Public Assamese text is roughly two orders of
-   magnitude scarcer than Bengali. The assignment permits a documented shortfall;
+1. **Both languages reached 500M.** The assignment permits a documented shortfall
+   for the lower-resource language, but it was not needed here;
    `scripts/tokenize_corpus.py` reports the exact achieved count and gap.
 2. **The manual-collection share must be re-established.** It clears 20% on the
    sampled profile only because downloaded sources are capped. Removing those caps
@@ -211,7 +221,7 @@ templates. Manual collection has two paths:
   content_selector: null      # null = densest-text-block heuristic
   max_pages: 1000
   delay_seconds: 1.5
-  cache_dir: bengali/data/raw/scrape_cache
+  cache_dir: hindi/data/raw/scrape_cache
 ```
 
 The crawler honours `robots.txt`, rate-limits per host, stays on the seed hosts,
@@ -237,35 +247,47 @@ picked up automatically by the `manual_ocr_*` source on the next corpus build.
 
 ### Cross-language contamination
 
-Bengali and Assamese share the Bengali Unicode block, so a script check cannot
-separate them and general-purpose language identifiers routinely mislabel Assamese
-as Bengali. Since the project forbids sharing documents between corpora — and
-Bengali text is far more abundant online — leakage into the Assamese corpus is the
+Hindi and Nepali share the Devanagari Unicode block, so a script check cannot
+separate them, and they share a great deal of vocabulary besides. Since the project
+forbids sharing documents between corpora — and Hindi text is far more abundant
+online — leakage into the Nepali corpus is the
 likely failure direction.
 
 [`lma/data/language_id.py`](lma/data/language_id.py) scores documents on
-orthographic evidence: the Assamese-exclusive letters `ৰ` (U+09F0) and `ৱ` (U+09F1),
-the `ৰ`:`র` ratio, and divergent high-frequency function words. A document is
+**grammatical** evidence rather than orthographic, because the two languages share
+the script and much of the lexicon. The discriminating forms are the ones present in
+almost every sentence: copulas (Hindi `है`/`हैं`/`था` versus Nepali `छ`/`छन्`/`हो`/`थियो`)
+and case markers (Hindi `ने`/`को`/`से` versus Nepali `ले`/`लाई`/`बाट`). A document is
 accepted only when its language wins by a margin; ambiguous documents are dropped
-rather than guessed. Spot-checking Sangraha's `verified/asm` split during
-development did turn up unrelated Latin-script text, which this stage removes.
+rather than guessed. On validation samples the separation is clean: Hindi text scores
+0.326 on Hindi markers and 0.000 on Nepali ones, and Nepali text the reverse.
 
-### Normalization must not "fix" Assamese into Bengali
+This is not hypothetical. A late manual source supplied as "mixed" content measured
+99.6% Nepali and 0.1% Hindi; the Hindi documents were dropped here rather than being
+allowed into Model L.
 
-A generic Indic normalizer folds U+09F0 → U+09B0, silently rewriting Assamese as
-Bengali. [`lma/data/normalize.py`](lma/data/normalize.py) is therefore
-language-profiled: Assamese preserves `ৰ`/`ৱ`, Bengali folds them (where they
-indicate OCR noise). ZWNJ/ZWJ are preserved because they control Indic conjunct
+### Normalization must not strip the Devanagari nukta
+
+A generic Indic normalizer folds the nukta letters U+0958–U+095F onto their unmarked
+bases, which merges distinct Hindi words: `ज़रा` ("a little") becomes `जरा` ("aged").
+[`lma/data/normalize.py`](lma/data/normalize.py) is therefore language-profiled and
+preserves the nukta for both languages. ZWNJ/ZWJ are preserved because they control
+Devanagari conjunct
 formation. The normalizer is idempotent — which required a second NFC pass, since
 NFC *decomposes* the nukta letters that the unification rules compose.
 
 ### Measured, not assumed, thresholds
 
-The near-duplicate threshold is **0.70**, not the customary 0.80: on real Bengali
+The near-duplicate threshold is **0.70**, not the customary 0.80: on real Hindi
 prose, replacing one sentence of eight in an article measures at true Jaccard ≈0.79,
 so a 0.80 cutoff misses ordinary syndicated-news duplicates. The script-ratio filter
-measures Bengali share among **letters only**, excluding digits, so digit-heavy
+measures Devanagari share among **letters only**, excluding digits, so digit-heavy
 pages are attributed to the digit filter rather than misreported as "wrong script".
+
+Near-duplicate detection is nevertheless **disabled** in both `pipeline.yaml` files.
+On the Hindi run it rejected 0.19% of documents seen while consuming roughly 90% of
+the runtime and enough memory to trigger the OOM killer; exact-hash deduplication,
+which is retained, removed far more (1.5%) for negligible cost.
 
 ### Reproducibility
 
@@ -278,18 +300,50 @@ configuration into its output JSON alongside the results.
 
 ## Large artifacts (Google Drive)
 
-Per the submission instructions, large artifacts are hosted on Drive rather than
-committed. Links are added as each phase produces them.
+Per the submission instructions, large artifacts are hosted on Google Drive rather
+than committed to git. The tokenizer models and vocabularies are small and **are**
+in this repository, under `hindi/tokenizer/` and `nepali/tokenizer/`.
 
-| Artifact | Phase | Link |
-|---|---|---|
-| Bengali corpus (processed splits) | 1 | _to be added_ |
-| Assamese corpus (processed splits) | 1 | _to be added_ |
-| Bengali tokenizer (model + vocab) | 1 | _to be added_ |
-| Assamese tokenizer (model + vocab) | 1 | _to be added_ |
-| Model H pretrained checkpoint | 2 | _pending_ |
-| Model L pretrained checkpoint | 2 | _pending_ |
-| Model H / L finetuned checkpoints | 3 | _pending_ |
+**Drive folder:** _<paste the shareable link to `LMA-Individual-Project/` here>_
+
+Permissions are set to **"Anyone with the link → Viewer"**, so the folder opens
+without an access request.
+
+### Folder structure
+
+```
+LMA-Individual-Project/
+├── phase1-processed/     11.8 GB   the corpora behind every figure in the report
+│   ├── hindi/            hi_train.jsonl, hi_validation.jsonl, hi_test.jsonl
+│   └── nepali/           ne_train.jsonl, ne_validation.jsonl, ne_test.jsonl
+├── phase1-manual/         5.7 GB   the manually collected sources (>=20% requirement)
+│   ├── hindi/            bulk JSONL, wikipedia.txt, scraped/, ocr/
+│   └── nepali/           bulk JSONL, scraped/
+└── phase1-sources/       11.6 GB   mirrors of the public corpora, for convenience only
+    ├── indiccorp.txt                 (AI4Bharat IndicCorp, Hindi)
+    └── nepali_corpus_full.parquet    (public Nepali corpus)
+```
+
+`phase1-sources/` holds third-party public datasets under their own licences; they
+are mirrored only so a reviewer can reproduce a build without re-downloading. Their
+provenance is recorded in `hindi/configs/sources.yaml` and
+`nepali/configs/sources.yaml`.
+
+### Individual links
+
+| Artifact | Phase | Size | Link |
+|---|---|---|---|
+| Hindi processed splits (Model H) | 1 | 5.23 GB | _to be added_ |
+| Nepali processed splits (Model L) | 1 | 6.61 GB | _to be added_ |
+| Hindi manual-collection sources | 1 | 1.31 GB | _to be added_ |
+| Nepali manual-collection sources | 1 | 4.36 GB | _to be added_ |
+| Public source corpora (optional) | 1 | 11.56 GB | _to be added_ |
+| Model H pretrained checkpoint | 2 | — | _pending_ |
+| Model L pretrained checkpoint | 2 | — | _pending_ |
+| Model H / L finetuned checkpoints | 3 | — | _pending_ |
+
+Tokenizer models and vocabularies are **in the repository**, not on Drive:
+[`hindi/tokenizer/`](hindi/tokenizer/) and [`nepali/tokenizer/`](nepali/tokenizer/).
 
 Tokenizer `.model`/`.vocab` files are small enough to remain in the repository;
 processed corpora and checkpoints go to Drive.
