@@ -58,3 +58,6 @@ Thumbs.db
 ocr_status.sh
 scrape_status.sh
 LMA_Individual_Project_v1.pdf
+
+# Colab/Kaggle runner notebooks: scratch tooling, no saved results
+notebooks/
