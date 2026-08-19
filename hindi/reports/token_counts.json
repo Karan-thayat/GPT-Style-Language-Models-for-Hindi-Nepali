@@ -1,9 +1,62 @@
 {
- "train_tokens": 578319564,
- "by_collection": {
-  "downloaded": 453409183,
-  "manual": 124910381
- },
- "documents": 921582,
- "manual_token_fraction": 0.21598851011721956
+  "achieved_fraction_of_target": 1.160325456,
+  "by_collection": {
+    "downloaded": 454883073,
+    "manual": 125279655
+  },
+  "language": "hi",
+  "language_name": "Hindi",
+  "manual_token_fraction": 0.21593882018563593,
+  "model": "H",
+  "per_split": {
+    "test": {
+      "by_collection": {
+        "downloaded": 4504631,
+        "manual": 1227000
+      },
+      "bytes_per_token": 8.730569884907107,
+      "characters": 19764794,
+      "chars_per_token": 3.4483716764041508,
+      "documents": 9422,
+      "seconds": 2.399865602999853,
+      "tokens": 5731631,
+      "tokens_per_document": 608.3242411377627,
+      "utf8_bytes": 50040405
+    },
+    "train": {
+      "by_collection": {
+        "downloaded": 454883073,
+        "manual": 125279655
+      },
+      "bytes_per_token": 8.720466355087877,
+      "characters": 1998064672,
+      "chars_per_token": 3.44397282963686,
+      "documents": 921582,
+      "seconds": 215.11242306799977,
+      "tokens": 580162728,
+      "tokens_per_document": 629.5291444494359,
+      "utf8_bytes": 5059289550
+    },
+    "validation": {
+      "by_collection": {
+        "downloaded": 4529178,
+        "manual": 1260046
+      },
+      "bytes_per_token": 8.7625116941407,
+      "characters": 20034771,
+      "chars_per_token": 3.4607006051242792,
+      "documents": 9325,
+      "seconds": 2.2573628019999887,
+      "tokens": 5789224,
+      "tokens_per_document": 620.8283109919571,
+      "utf8_bytes": 50728143
+    }
+  },
+  "shortfall_tokens": 0,
+  "target_met": true,
+  "target_train_tokens": 500000000,
+  "tokenizer_model": "/home/karan/Desktop/project lma/hindi/tokenizer/hi_unigram_8000.model",
+  "total_tokens": 591683583,
+  "train_tokens": 580162728,
+  "vocab_size": 8000
 }

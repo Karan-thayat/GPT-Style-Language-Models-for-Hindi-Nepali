@@ -7,9 +7,9 @@ picks it up automatically on the next corpus build.
 
 Usage::
 
-    python scripts/run_ocr.py --language bn
-    python scripts/run_ocr.py --language as --pdf-dir assamese/data/raw/pdf --per-page
-    python scripts/run_ocr.py --language as --check   # dependency check only
+    python scripts/run_ocr.py --language hi
+    python scripts/run_ocr.py --language ne --pdf-dir nepali/data/raw/pdf --per-page
+    python scripts/run_ocr.py --language ne --check   # dependency check only
 """
 
 from __future__ import annotations

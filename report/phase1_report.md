@@ -44,10 +44,7 @@ The shared script also creates the project's main data-integrity hazard, which i
 addressed explicitly in §3: the two languages are easy to confuse programmatically
 — they share not only the script but a large amount of vocabulary — so preventing
 cross-contamination requires a positive language-identity test built on grammar
-rather than a script check. The measured vocabulary overlap between the two trained
-tokenizers is a Jaccard index of 0.200, which is the partial overlap a shared script
-predicts; a value near 1.0 would indicate one vocabulary had been copied from the
-other.
+rather than a script check. The measured vocabulary overlap between the two trained tokenizers is a Jaccard index of 0.199, which is the partial overlap a shared script predicts; a value near 1.0 would indicate one vocabulary had been copied from the other.
 
 ---
 
@@ -188,7 +185,7 @@ Overall: **PASSED**
 | Hindi: train ∩ test documents | 0 |
 | Nepali: train ∩ validation documents | 0 |
 | Nepali: train ∩ test documents | 0 |
-| Vocabulary piece overlap (Jaccard) | 0.200 (near zero expected — the scripts differ; a high value would indicate reuse) |
+| Vocabulary piece overlap (Jaccard) | 0.199 (near zero expected — the scripts differ; a high value would indicate reuse) |
 | Hindi corpus identified as hi | 100.0% |
 | Nepali corpus identified as ne | 100.0% |
 
@@ -212,36 +209,29 @@ Overall: **PASSED**
 | Devanagari char ratio | 0.948 | 0.973 |
 | Manual collection share (words) | 19.1% | 58.0% |
 | Distinct characters | 6,395 | 3,093 |
-| **Training tokens (exact)** | **578,319,564** | **610,989,716** |
-| Total tokens (all splits) | — | — |
-| Achieved vs 500M target | — | — |
+| **Training tokens (exact)** | **580,162,728** | **612,476,098** |
+| Total tokens (all splits) | 591,683,583 | 638,418,007 |
+| Achieved vs 500M target | 116.03% | 122.50% |
 
-### 4.1 On the token counts in this run
+### 4.1 How the token counts were measured
 
-The table above reports the **`sampled` profile**, which caps each source so the
-whole pipeline can be executed and verified end to end on a laptop. Every number
-in this report is a real measurement from that run — nothing is extrapolated — but
-the token totals are therefore ~3.5M and ~3.7M rather than the ~500M target.
+Training tokens are counted by encoding **every document of the training split** with that language's own trained tokenizer, framing each document with BOS/EOS exactly as Phase 2 will pack it. Nothing here is extrapolated from a sample.
 
-The 500M-token corpus is produced by the same code with `--profile full`, which
-removes the per-source caps, widens the Sangraha `data_files` patterns from one
-shard to all of them, and stops the ingest on a token budget rather than a document
-count. What the sampled run establishes is that every stage works and every
-statistic is real; what remains for the full run is compute time, not code.
+- **Hindi (Model H)**: 580,162,728 training tokens (116.0% of the 500M target), of which 125,279,655 (21.6%) come from manual collection.
+- **Nepali (Model L)**: 612,476,098 training tokens (122.5% of the 500M target), of which 366,130,617 (59.8%) come from manual collection.
 
-Two honest caveats for the full run:
+Two points the table does not make obvious:
 
-1. **Both languages reached the target.** Hindi and Nepali each exceed 500M
-   training tokens, so the shortfall clause the assignment permits for the
-   lower-resource language was not needed. Nepali in fact finished larger than
-   Hindi, because a single large manually-collected corpus cleaned at a 94.5% word
-   keep rate against the 80% typical of raw web crawl.
+1. **Both languages reached the 500M target.** The shortfall clause the assignment
+   permits for the lower-resource language was not needed. Nepali in fact finished
+   larger than Hindi, because its bulk manually-collected corpus arrives already
+   stripped of site furniture and so cleans at a 94.5% word keep rate, against the
+   ~80% typical of raw web crawl.
 2. **The manual-collection share is measured in tokens, not words.** The assignment
    requires "at least 20% of the final training tokens", and the two measures differ
-   because manually collected prose tokenizes at a different rate to downloaded web
-   text: the Hindi corpus is 21.6% manual by token and 19.1% by word. The figures
-   reported in §4 are token-based, computed by encoding every training document with
-   that language's own trained tokenizer.
+   because manually collected prose does not tokenize at the same rate as downloaded
+   web text. §4's manual figures are token-based; the word-based figure is reported
+   separately in the table above and is the lower of the two for Hindi.
 
 ### 4.2 Per-source contributions
 
@@ -310,11 +300,9 @@ Key configuration choices and why:
   Two byte-fallback rates are reported, because the raw figure is misleading.
   SentencePiece trains on one-line-per-sentence input and so never learns a piece
   for the newline character; every line break in a multi-line document then costs
-  one `<0x0A>` byte token. Measured on the corpora in this run, that artifact
-  **85% of all byte-fallback tokens** (3.58% of tokens, against 0.65% genuine
-  coverage failures). The script-only rate excludes whitespace bytes and is the
-  figure that actually reflects vocabulary coverage; the raw rate would otherwise
-  grow with document length rather than with coverage.
+  one `<0x0A>` byte token. Measured on the held-out text of this run: in Hindi, byte pieces are 0.5938% of tokens, of which 1.7% encode whitespace, leaving 0.5836% as genuine coverage failures; in Nepali, byte pieces are 0.9886% of tokens, of which 23.7% encode whitespace, leaving 0.7547% as genuine coverage failures. The script-only rate excludes
+  whitespace bytes and is the figure that actually reflects vocabulary coverage;
+  the raw rate would otherwise grow with document length rather than with coverage.
 - **`character_coverage: 0.9995`** — at 1.0 every stray Latin/CJK/symbol
   character in the long tail claims its own vocabulary slot. The remainder falls
   back to bytes.
@@ -350,34 +338,102 @@ improves fertility by 7.2% for 0.4M transformer parameters, while 10,000 would c
 equal across both languages also keeps the Phase 2 comparison clean, so any
 difference there reflects data scale rather than tokenizer configuration.
 
-_Sweep has not been run._
+**Hindi (Model H)**
+
+| Algorithm | Vocab size | Fertility | Unk rate | Byte-fallback | Chars/token |
+|---|---:|---:|---:|---:|---:|
+| unigram | 5,000 | 1.562 | 0.0e+00 | 0.4066% | 3.29 |
+| unigram | 6,000 | 1.516 | 0.0e+00 | 0.4190% | 3.39 |
+| unigram | 8,000 | 1.452 | 0.0e+00 | 0.4374% | 3.54 |
+| unigram | 10,000 | 1.411 | 0.0e+00 | 0.4500% | 3.64 |
+| bpe | 5,000 | 1.592 | 0.0e+00 | 0.3991% | 3.23 |
+| bpe | 6,000 | 1.542 | 0.0e+00 | 0.4119% | 3.33 |
+| bpe | 8,000 | 1.475 | 0.0e+00 | 0.4308% | 3.49 |
+| bpe | 10,000 | 1.430 | 0.0e+00 | 0.4441% | 3.59 |
+
+Selected: **unigram, vocab 8,000** (fertility 1.452).
 
 ### 6.2 Held-out tokenizer metrics
 
 | Tokenizer metric (held-out) | Hindi (Model H) | Nepali (Model L) |
 |---|---:|---:|
-| Algorithm | — | — |
-| Vocabulary size | — | — |
-| **Fertility (tokens/word)** | — | — |
-| Unknown-token rate | — | — |
-| Byte-fallback rate (all) | — | — |
-| **Byte-fallback rate (script only)** | — | — |
-| Characters per token | — | — |
-| Bytes per token | — | — |
-| Single-token words | — | — |
-| Vocabulary utilization | — | — |
-| Byte-fallback pieces in vocab | — | — |
-| Devanagari pieces in vocab | — | — |
-| Mean piece length (chars) | — | — |
-| Held-out documents evaluated | — | — |
+| Algorithm | unigram | unigram |
+| Vocabulary size | 8,000 | 8,000 |
+| **Fertility (tokens/word)** | **1.453** | **1.692** |
+| Unknown-token rate | 0.00e+00 | 0.00e+00 |
+| Byte-fallback rate (all) | 0.5938% | 0.9886% |
+| **Byte-fallback rate (script only)** | **0.5836%** | **0.7547%** |
+| Characters per token | 3.537 | 3.992 |
+| Bytes per token | 8.981 | 10.657 |
+| Single-token words | 74.9% | 59.0% |
+| Vocabulary utilization | 98.1% | 98.2% |
+| Byte-fallback pieces in vocab | 256 | 256 |
+| Devanagari pieces in vocab | 7,230 | 7,710 |
+| Mean piece length (chars) | 4.67 | 5.63 |
+| Held-out documents evaluated | 3,000 | 3,000 |
 
 ### 6.3 Most frequent tokens (held-out text)
 
-_Tokenizer has not been trained._
+| Rank | Hindi (Model H) | Nepali (Model L) |
+|---:|---|---|
+| 1 | `।` (3.02%) | `।` (4.14%) |
+| 2 | `▁के` (2.72%) | `को` (2.11%) |
+| 3 | `▁है` (2.13%) | `,` (1.90%) |
+| 4 | `▁में` (1.98%) | `▁` (1.87%) |
+| 5 | `,` (1.88%) | `मा` (1.75%) |
+| 6 | `▁` (1.75%) | `▁र` (1.39%) |
+| 7 | `▁की` (1.59%) | `ले` (1.21%) |
+| 8 | `▁को` (1.24%) | `का` (1.09%) |
+| 9 | `▁से` (1.22%) | `▁छ` (0.99%) |
+| 10 | `▁और` (1.14%) | `▁पनि` (0.79%) |
+| 11 | `▁का` (1.03%) | `लाई` (0.69%) |
+| 12 | `.` (0.80%) | `2` (0.47%) |
+| 13 | `▁ने` (0.77%) | `0` (0.46%) |
+| 14 | `▁हैं` (0.76%) | `1` (0.45%) |
+| 15 | `▁पर` (0.74%) | `न` (0.44%) |
+| 16 | `▁कि` (0.66%) | `▁हो` (0.40%) |
+| 17 | `0` (0.58%) | `▁'` (0.38%) |
+| 18 | `▁भी` (0.55%) | `र` (0.38%) |
+| 19 | `1` (0.55%) | `ल` (0.37%) |
+| 20 | `▁एक` (0.53%) | `बाट` (0.36%) |
 
 ### 6.4 Tokenization examples
 
-_Tokenizer has not been trained._
+**Hindi (Model H)**
+
+- Text: `संस्थापक चेयरमैन प्रदीप जैन के नेतृत्व में पार्श्वनाथ डेवलपर्स लिमिटेड 34 सालों के अनुभव के साथ देश के अग्रणी रियल एस्टेट एवं इंफ्रास्ट्रक्टर कंपनियों`
+  - Pieces (64 tokens, 41 words, fertility 1.56): `▁संस्था पक ▁चेयरमैन ▁प्रदीप ▁जैन ▁के ▁नेतृत्व ▁में ▁पा र् श्व नाथ ▁डेवलप र्स ▁लिमिटेड ▁ 3 4 ▁सालों ▁के ▁अनुभव ▁के ▁साथ ▁देश ▁के ▁अग्रणी ▁ रियल ▁ए स्ट ेट ▁एवं ▁इं फ् रा स्ट ्र क्टर ▁कंपनियों ▁में`
+  - Round-trip decode matches: True
+- Text: `चुनाव आयोग कोविड प्रोटोकॉल्स लागू करवाने में नाकाम क्यों रहा? उसके 27 अधिकारियों के खिलाफ मुकदमा क्यों ना चलाया जाये? Lucknow: उत्तर प्रदेश में कोरोना`
+  - Pieces (52 tokens, 39 words, fertility 1.33): `▁चुनाव ▁आयोग ▁कोविड ▁प्रोटोकॉल ्स ▁लागू ▁करवाने ▁में ▁नाकाम ▁क्यों ▁रहा ? ▁उसके ▁ 2 7 ▁अधिकारियों ▁के ▁खिलाफ ▁मुकदमा ▁क्यों ▁ना ▁चलाया ▁जाये ? ▁L u c k n ow : ▁उत्तर ▁प्रदेश ▁में ▁कोरोना ▁संक्रमण ▁के ▁मामले ▁लगातार`
+  - Round-trip decode matches: True
+- Text: `श्रीलंका के पूर्व कप्तान एंजेलो मैथ्यूज का मानना है कि विश्व कप में अच्छा प्रदर्शन करना है तो टीम को प्रेशर कंडीशन से निपटना सीखना होगा। श्रीलंका की ट`
+  - Pieces (59 tokens, 45 words, fertility 1.31): `▁श्रीलंका ▁के ▁पूर्व ▁कप्तान ▁ एं जे लो ▁मै थ ्यू ज ▁का ▁मानना ▁है ▁कि ▁विश्व ▁कप ▁में ▁अच्छा ▁प्रदर्शन ▁करना ▁है ▁तो ▁टीम ▁को ▁प्रेशर ▁कं डी शन ▁से ▁नि पट ना ▁सीख ना ▁होगा । ▁श्रीलंका ▁की`
+  - Round-trip decode matches: True
+- Text: `India China Relation: चीन के हवाले से भारत को लेकर एक ऐसी खबर आई है, जिस पर यकीन होना मुश्किल है। दरअसल, चीन के विदेश मंत्री वांग यी (Wang Yi) ने भारत`
+  - Pieces (66 tokens, 46 words, fertility 1.43): `▁India ▁Ch in a ▁R el ation : ▁चीन ▁के ▁हवाले ▁से ▁भारत ▁को ▁लेकर ▁एक ▁ऐसी ▁खबर ▁आई ▁है , ▁जिस ▁पर ▁यकीन ▁होना ▁मुश्किल ▁है । ▁दरअसल , ▁चीन ▁के ▁विदेश ▁मंत्री ▁वा ंग ▁ यी ▁( W`
+  - Round-trip decode matches: True
+- Text: `उत्तरी कोरिया के उप संसद सभापति ने कहा है कि जो भी कोरिया प्रायःद्वीप की शांति को भंग करने के प्रयास करेगा वह हमारे हमले का निशाना बनेगा। केलिफोर्निया`
+  - Pieces (53 tokens, 45 words, fertility 1.18): `▁उत्तरी ▁कोरिया ▁के ▁उप ▁संसद ▁सभापति ▁ने ▁कहा ▁है ▁कि ▁जो ▁भी ▁कोरिया ▁प्रायः द्वीप ▁की ▁शांति ▁को ▁भंग ▁करने ▁के ▁प्रयास ▁करेगा ▁वह ▁हमारे ▁हमले ▁का ▁निशाना ▁बनेगा । ▁के लि फो र्न िया ▁के ▁जंगल ों ▁में ▁लगी`
+  - Round-trip decode matches: True
+
+**Nepali (Model L)**
+
+- Text: `बीपी कोइरालाको जन्म प्रथम महायुद्धताका 1971 भदौ 24 तदनुसार अगस्ट 1914 मा भएको हो। 32/33 वर्ष हुँदा नेपाली राष्ट्रिय कांग्रेसको स्थापना कालदेखि 2039 सा`
+  - Pieces (66 tokens, 34 words, fertility 1.94): `▁बीपी ▁कोइराला को ▁जन्म ▁प्रथम ▁महा युद्ध ताका ▁ 1 9 7 1 ▁भदौ ▁ 2 4 ▁त द नुसार ▁अ ग स्ट ▁ 1 9 1 4 ▁मा ▁भएको ▁हो । ▁ 3 2 <0x2F> 3 3 ▁वर्ष ▁हुँदा`
+  - Round-trip decode matches: True
+- Text: `बीस महिनापछि बसेको पार्टीको केन्द्रीय समिति बैठकमा प्रधानमन्त्री एवं नेकपा अध्यक्ष केपी शर्मा ओलीले सरकारका कामको 'ब्रिफिङ'देखि पार्टीभित्र र बाहिरबाट`
+  - Pieces (44 tokens, 29 words, fertility 1.52): `▁बीस ▁महिना पछि ▁बसेको ▁पार्टीको ▁केन्द्रीय ▁समिति ▁बैठकमा ▁प्रधानमन्त्री ▁एवं ▁नेकपा ▁अध्यक्ष ▁केपी ▁शर्मा ▁ओलीले ▁सरकारका ▁कामको ▁' ब ्रि फ िङ ' देखि ▁पार्टीभित्र ▁र ▁बाहिर बाट ▁सरकार माथि ▁भएको ▁आलोचना को ▁बचाउ ▁गरेका ▁छन् । सरकार ले ▁गरेका`
+  - Round-trip decode matches: True
+- Text: `भारतका अन्य कूटनीतिक नियोगहरूले जस्तै काठमाडौं लैनचौरस्थित भारतीय दूतावासले प्रयोग गरेको ट्याग लाइन 'इन्डिया इन नेपाल' (नेपालमा भारत)ले आर्थिक, वैकासि`
+  - Pieces (60 tokens, 30 words, fertility 2.00): `▁भारत का ▁अन्य ▁कूटनीतिक ▁नियोग हरूले ▁जस्तै ▁काठमाडौं ▁ लै न चौर स्थित ▁भारतीय ▁दूतावास ले ▁प्रयोग ▁गरेको ▁ ट्या ग ▁लाइन ▁' इन्ड िया ▁इन ▁नेपाल ' ▁( नेपाल मा ▁भारत ) ले ▁आर्थिक , ▁ वै का स`
+  - Round-trip decode matches: True
+- Text: `भुटानको 400 वर्षको कथा डा. भम्पा राई एकाबिहानै क्लिनिक खोलेर बिरामीका फाइल पल्टाउँदै थिए। जसै बिहान सात बजेको रेडियो समाचार सुरू भयो, उनले भोल्युम ठूल`
+  - Pieces (70 tokens, 37 words, fertility 1.89): `▁भुटान को ▁ 4 0 0 ▁वर्षको ▁कथा ▁डा . ▁भ म्प ा ▁राई ▁एक ा बि हान ै ▁क्ल िन िक ▁खोलेर ▁बिरामी का ▁फाइल ▁पल्ट ाउँदै ▁थिए । ▁जस ै ▁बिहान ▁सात ▁बजे को ▁रेडियो ▁समाचार ▁सुरू ▁भयो`
+  - Round-trip decode matches: True
+- Text: `आधा शताब्दी पहिलेका तुलनामा नेपालमा अहिले समाजविज्ञानका विभिन्न विधाको पढाइलेखाइमा निकै विकास भइसकेको भए तापनि स्थलगत प्रत्यक्ष शोधकार्यमा आधारित अनुस`
+  - Pieces (49 tokens, 30 words, fertility 1.63): `▁आधा ▁शताब्दी ▁पहिले का ▁तुलनामा ▁नेपालमा ▁अहिले ▁समाज वि ज्ञान का ▁विभिन्न ▁विधा को ▁पढाइ ले ख ाइ मा ▁निकै ▁विकास ▁भइसकेको ▁भए ▁तापनि ▁स्थल गत ▁प्रत्यक्ष ▁शोध कार्य मा ▁आधारित ▁अनुसन्धान ▁सामान्य तः ▁दुर्लभ ▁छन् । ▁यस ▁परि प्र`
+  - Round-trip decode matches: True
 
 ---
 
@@ -411,6 +467,18 @@ _Tokenizer has not been trained._
 
 *Figure 7: Train/validation/test split sizes in characters (log scale).*
 
+![Vocabulary selection: held-out fertility and byte-fallback rate against vocabulary size, for both algorithms.](figures/vocab_sweep.png)
+
+*Figure 8: Vocabulary selection: held-out fertility and byte-fallback rate against vocabulary size, for both algorithms.*
+
+![Token-frequency distribution and cumulative coverage on held-out text.](figures/token_frequency.png)
+
+*Figure 9: Token-frequency distribution and cumulative coverage on held-out text.*
+
+![Vocabulary piece-length distribution for the two tokenizers.](figures/piece_length_histogram.png)
+
+*Figure 10: Vocabulary piece-length distribution for the two tokenizers.*
+
 ---
 
 ## 8. Reproduction
@@ -423,8 +491,8 @@ python -m venv .venv && .venv/bin/pip install -r requirements.txt
 .venv/bin/python scripts/test_pipeline.py
 
 # 2. Optional: OCR scanned books for the manual-collection share
-.venv/bin/python scripts/run_ocr.py --language bn
-.venv/bin/python scripts/run_ocr.py --language as
+.venv/bin/python scripts/run_ocr.py --language hi
+.venv/bin/python scripts/run_ocr.py --language ne
 
 # 3. Build both corpora (independently)
 .venv/bin/python scripts/build_corpus.py --config hindi/configs/pipeline.yaml \
@@ -435,6 +503,7 @@ python -m venv .venv && .venv/bin/pip install -r requirements.txt
 # 4. Train tokenizers, with the vocabulary sweep
 .venv/bin/python scripts/train_tokenizer.py --config hindi/configs/pipeline.yaml --sweep
 .venv/bin/python scripts/train_tokenizer.py --config nepali/configs/pipeline.yaml --sweep
+#    (--eval-only re-measures the tokenizers already on disk without refitting them)
 
 # 5. Exact token counts (and optional Phase 2 binary output)
 .venv/bin/python scripts/tokenize_corpus.py --config hindi/configs/pipeline.yaml

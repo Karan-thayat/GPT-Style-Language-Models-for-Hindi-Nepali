@@ -277,6 +277,87 @@ def section_tokenizer_table(artifacts: dict[str, dict]) -> str:
     return "\n".join(rows)
 
 
+def section_token_accounting(artifacts: dict[str, dict]) -> str:
+    """Describe how the training-token totals were produced, with the measured numbers.
+
+    Written from the artifacts because the previous fixed prose described a smaller
+    trial run and kept saying so after the full run had replaced it.
+    """
+    lines = [
+        "Training tokens are counted by encoding **every document of the training "
+        "split** with that language's own trained tokenizer, framing each document "
+        "with BOS/EOS exactly as Phase 2 will pack it. Nothing here is extrapolated "
+        "from a sample.",
+        "",
+    ]
+    measured = []
+    for language, entry in artifacts.items():
+        tokens = entry.get("tokens")
+        if not tokens:
+            continue
+        name = "Hindi (Model H)" if language == "hi" else "Nepali (Model L)"
+        train = tokens.get("train_tokens")
+        fraction = tokens.get("achieved_fraction_of_target")
+        manual = (tokens.get("by_collection") or {}).get("manual")
+        piece = f"**{name}**: {fmt(train)} training tokens"
+        if fraction:
+            piece += f" ({100 * fraction:.1f}% of the 500M target)"
+        if manual and train:
+            piece += f", of which {fmt(manual)} ({100 * manual / train:.1f}%) come from manual collection"
+        measured.append(piece + ".")
+    if not measured:
+        return "\n".join(lines) + "\n_Token counts have not been produced yet._"
+    return "\n".join(lines + [f"- {m}" for m in measured])
+
+
+def sentence_vocab_overlap(validation: dict | None) -> str:
+    """State how much the two vocabularies overlap, from the validation artifact.
+
+    A shared script guarantees some overlap, so the figure is only meaningful
+    against what copying would look like. It is read rather than written down
+    because it changes whenever either tokenizer is refitted.
+    """
+    jaccard = (validation or {}).get("checks", {}).get("vocab_jaccard")
+    if jaccard is None:
+        return (
+            "The vocabulary overlap between the two trained tokenizers has not been "
+            "measured yet; `scripts/validate_independence.py` computes it."
+        )
+    return (
+        f"The measured vocabulary overlap between the two trained tokenizers is a Jaccard "
+        f"index of {jaccard:.3f}, which is the partial overlap a shared script predicts; a "
+        "value near 1.0 would indicate one vocabulary had been copied from the other."
+    )
+
+
+def section_byte_fallback_note(artifacts: dict[str, dict]) -> str:
+    """State the measured split between the newline artifact and real coverage failures.
+
+    The raw byte-fallback rate mixes two unrelated things, so the report has to say
+    how much of it is which. Those proportions differ per corpus - they depend on
+    how heavily documents are line-wrapped - so the sentence is generated from the
+    measurements rather than written once and left to drift.
+    """
+    parts = []
+    for language, entry in artifacts.items():
+        metrics = entry.get("tokenizer", {}).get("metrics")
+        if not metrics or not metrics.get("byte_fallback_tokens"):
+            continue
+        name = "Hindi" if language == "hi" else "Nepali"
+        whitespace_share = metrics["whitespace_byte_tokens"] / metrics["byte_fallback_tokens"]
+        parts.append(
+            f"in {name}, byte pieces are {100 * metrics['byte_fallback_rate']:.4f}% of tokens, "
+            f"of which {100 * whitespace_share:.1f}% encode whitespace, leaving "
+            f"{100 * metrics['script_byte_fallback_rate']:.4f}% as genuine coverage failures"
+        )
+    if not parts:
+        return (
+            "Both rates are reported separately in §6.2; the split has not been measured "
+            "because the tokenizer evaluation has not been run."
+        )
+    return "Measured on the held-out text of this run: " + "; ".join(parts) + "."
+
+
 def section_sweep_table(artifacts: dict[str, dict]) -> str:
     """Render the vocabulary sweep results for both languages."""
     blocks = []
@@ -422,6 +503,9 @@ def build_markdown(
         f"![{caption}](figures/{path.name})\n\n*Figure {index}: {caption}*"
         for index, (caption, path) in enumerate(figures, start=1)
     )
+    byte_fallback_note = section_byte_fallback_note(artifacts)
+    vocab_overlap_sentence = sentence_vocab_overlap(validation)
+    token_accounting = section_token_accounting(artifacts)
 
     return f"""# Phase 1 — Data Collection and Tokenizer Construction
 
@@ -469,10 +553,7 @@ The shared script also creates the project's main data-integrity hazard, which i
 addressed explicitly in §3: the two languages are easy to confuse programmatically
 — they share not only the script but a large amount of vocabulary — so preventing
 cross-contamination requires a positive language-identity test built on grammar
-rather than a script check. The measured vocabulary overlap between the two trained
-tokenizers is a Jaccard index of 0.200, which is the partial overlap a shared script
-predicts; a value near 1.0 would indicate one vocabulary had been copied from the
-other.
+rather than a script check. {vocab_overlap_sentence}
 
 ---
 
@@ -612,32 +693,22 @@ the pipeline's intent, by `scripts/validate_independence.py`:
 
 {section_dataset_table(artifacts)}
 
-### 4.1 On the token counts in this run
+### 4.1 How the token counts were measured
 
-The table above reports the **`sampled` profile**, which caps each source so the
-whole pipeline can be executed and verified end to end on a laptop. Every number
-in this report is a real measurement from that run — nothing is extrapolated — but
-the token totals are therefore ~3.5M and ~3.7M rather than the ~500M target.
+{token_accounting}
 
-The 500M-token corpus is produced by the same code with `--profile full`, which
-removes the per-source caps, widens the Sangraha `data_files` patterns from one
-shard to all of them, and stops the ingest on a token budget rather than a document
-count. What the sampled run establishes is that every stage works and every
-statistic is real; what remains for the full run is compute time, not code.
+Two points the table does not make obvious:
 
-Two honest caveats for the full run:
-
-1. **Both languages reached the target.** Hindi and Nepali each exceed 500M
-   training tokens, so the shortfall clause the assignment permits for the
-   lower-resource language was not needed. Nepali in fact finished larger than
-   Hindi, because a single large manually-collected corpus cleaned at a 94.5% word
-   keep rate against the 80% typical of raw web crawl.
+1. **Both languages reached the 500M target.** The shortfall clause the assignment
+   permits for the lower-resource language was not needed. Nepali in fact finished
+   larger than Hindi, because its bulk manually-collected corpus arrives already
+   stripped of site furniture and so cleans at a 94.5% word keep rate, against the
+   ~80% typical of raw web crawl.
 2. **The manual-collection share is measured in tokens, not words.** The assignment
    requires "at least 20% of the final training tokens", and the two measures differ
-   because manually collected prose tokenizes at a different rate to downloaded web
-   text: the Hindi corpus is 21.6% manual by token and 19.1% by word. The figures
-   reported in §4 are token-based, computed by encoding every training document with
-   that language's own trained tokenizer.
+   because manually collected prose does not tokenize at the same rate as downloaded
+   web text. §4's manual figures are token-based; the word-based figure is reported
+   separately in the table above and is the lower of the two for Hindi.
 
 ### 4.2 Per-source contributions
 
@@ -671,11 +742,9 @@ Key configuration choices and why:
   Two byte-fallback rates are reported, because the raw figure is misleading.
   SentencePiece trains on one-line-per-sentence input and so never learns a piece
   for the newline character; every line break in a multi-line document then costs
-  one `<0x0A>` byte token. Measured on the corpora in this run, that artifact
-  **85% of all byte-fallback tokens** (3.58% of tokens, against 0.65% genuine
-  coverage failures). The script-only rate excludes whitespace bytes and is the
-  figure that actually reflects vocabulary coverage; the raw rate would otherwise
-  grow with document length rather than with coverage.
+  one `<0x0A>` byte token. {byte_fallback_note} The script-only rate excludes
+  whitespace bytes and is the figure that actually reflects vocabulary coverage;
+  the raw rate would otherwise grow with document length rather than with coverage.
 - **`character_coverage: 0.9995`** — at 1.0 every stray Latin/CJK/symbol
   character in the long tail claims its own vocabulary slot. The remainder falls
   back to bytes.
@@ -743,8 +812,8 @@ python -m venv .venv && .venv/bin/pip install -r requirements.txt
 .venv/bin/python scripts/test_pipeline.py
 
 # 2. Optional: OCR scanned books for the manual-collection share
-.venv/bin/python scripts/run_ocr.py --language bn
-.venv/bin/python scripts/run_ocr.py --language as
+.venv/bin/python scripts/run_ocr.py --language hi
+.venv/bin/python scripts/run_ocr.py --language ne
 
 # 3. Build both corpora (independently)
 .venv/bin/python scripts/build_corpus.py --config hindi/configs/pipeline.yaml \\
@@ -755,6 +824,7 @@ python -m venv .venv && .venv/bin/pip install -r requirements.txt
 # 4. Train tokenizers, with the vocabulary sweep
 .venv/bin/python scripts/train_tokenizer.py --config hindi/configs/pipeline.yaml --sweep
 .venv/bin/python scripts/train_tokenizer.py --config nepali/configs/pipeline.yaml --sweep
+#    (--eval-only re-measures the tokenizers already on disk without refitting them)
 
 # 5. Exact token counts (and optional Phase 2 binary output)
 .venv/bin/python scripts/tokenize_corpus.py --config hindi/configs/pipeline.yaml

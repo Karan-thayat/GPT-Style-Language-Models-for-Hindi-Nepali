@@ -26,9 +26,9 @@ it - that corpus carries the ``manual`` provenance the 20% requirement needs.
 Usage::
 
     python scripts/ingest_token_dump.py \
-        --config bengali/configs/pipeline.yaml \
-        --dump LMA_Project_Bengali-.../train_tokens_500M.bin \
-        --vocab LMA_Project_Bengali-.../tokenizer/vocab.json \
+        --config hindi/configs/pipeline.yaml \
+        --dump <dump-dir>/train_tokens_500M.bin \
+        --vocab <dump-dir>/tokenizer/vocab.json \
         --merge-existing
 """
 
@@ -45,7 +45,7 @@ sys.path.insert(0, str(REPO_ROOT))
 from lma.data.checkpoint import CheckpointManager, IngestState, truncate_jsonl_to
 from lma.data.clean import CleanerConfig, DocumentCleaner
 from lma.data.detokenize import ByteLevelBpeDecoder
-from lma.data.normalize import BengaliScriptNormalizer, get_profile
+from lma.data.normalize import IndicNormalizer, get_profile
 from lma.data.splits import SPLIT_NAMES, SplitAssigner, SplitConfig, SplitWriter, iter_jsonl
 from lma.stats.corpus_stats import CorpusStatistics
 from lma.utils.config import load_pipeline_config
@@ -118,7 +118,7 @@ def main() -> int:
     logger.info("  %s tokens in dump, vocabulary of %s pieces",
                 f"{total_tokens:,}", f"{decoder.vocab_size:,}")
 
-    normalizer = BengaliScriptNormalizer(get_profile(language))
+    normalizer = IndicNormalizer(get_profile(language))
     cleaner = DocumentCleaner(CleanerConfig(language=language, **config["cleaning"]))
     assigner = SplitAssigner(SplitConfig(**config["splits"]))
     statistics = CorpusStatistics(language=language)

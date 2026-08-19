@@ -231,8 +231,8 @@ you are permitted to collect from a given site is your responsibility.**
 **2. OCR of books/PDFs** — drop PDFs into `<language>/data/raw/pdf/` and run:
 
 ```bash
-sudo apt-get install -y poppler-utils tesseract-ocr tesseract-ocr-ben tesseract-ocr-asm
-.venv/bin/python scripts/run_ocr.py --language bn
+sudo apt-get install -y poppler-utils tesseract-ocr tesseract-ocr-hin tesseract-ocr-nep
+.venv/bin/python scripts/run_ocr.py --language hi   # or --language ne
 ```
 
 PDFs with an embedded text layer are extracted directly (faster and more accurate);

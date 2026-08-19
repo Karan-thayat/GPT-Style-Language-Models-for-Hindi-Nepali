@@ -1,8 +1,62 @@
 {
- "train_tokens": 610989716,
- "by_collection": {
-  "downloaded": 246158859,
-  "manual": 364830857
- },
- "documents": 743191
+  "achieved_fraction_of_target": 1.224952196,
+  "by_collection": {
+    "downloaded": 246345481,
+    "manual": 366130617
+  },
+  "language": "ne",
+  "language_name": "Nepali",
+  "manual_token_fraction": 0.5977876005211881,
+  "model": "L",
+  "per_split": {
+    "test": {
+      "by_collection": {
+        "downloaded": 5055935,
+        "manual": 7722900
+      },
+      "bytes_per_token": 10.216749492422432,
+      "characters": 49124484,
+      "chars_per_token": 3.844206768457375,
+      "documents": 15557,
+      "seconds": 4.761449132999587,
+      "tokens": 12778835,
+      "tokens_per_document": 821.4202609757665,
+      "utf8_bytes": 130558156
+    },
+    "train": {
+      "by_collection": {
+        "downloaded": 246345481,
+        "manual": 366130617
+      },
+      "bytes_per_token": 10.25531069458975,
+      "characters": 2362409785,
+      "chars_per_token": 3.8571460873563757,
+      "documents": 743191,
+      "seconds": 262.72202020999976,
+      "tokens": 612476098,
+      "tokens_per_document": 824.1166779468535,
+      "utf8_bytes": 6281132678
+    },
+    "validation": {
+      "by_collection": {
+        "downloaded": 5480204,
+        "manual": 7682870
+      },
+      "bytes_per_token": 10.218382195526669,
+      "characters": 50603212,
+      "chars_per_token": 3.844330891097323,
+      "documents": 15488,
+      "seconds": 4.775060241000119,
+      "tokens": 13163074,
+      "tokens_per_document": 849.8885588842975,
+      "utf8_bytes": 134505321
+    }
+  },
+  "shortfall_tokens": 0,
+  "target_met": true,
+  "target_train_tokens": 500000000,
+  "tokenizer_model": "/home/karan/Desktop/project lma/nepali/tokenizer/ne_unigram_8000.model",
+  "total_tokens": 638418007,
+  "train_tokens": 612476098,
+  "vocab_size": 8000
 }

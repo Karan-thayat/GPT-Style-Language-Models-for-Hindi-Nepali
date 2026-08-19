@@ -9,13 +9,13 @@
     "ne_train_validation_overlap": 0,
     "ne_validation_test_overlap": 0,
     "shared_documents": 0,
-    "vocab_jaccard": 0.2003000750187547
+    "vocab_jaccard": 0.19895091794679656
   },
   "corpus": {
     "hi": {
-      "test": 9411,
-      "train": 921412,
-      "validation": 9312
+      "test": 9422,
+      "train": 921582,
+      "validation": 9325
     },
     "ne": {
       "test": 15557,
@@ -28,7 +28,7 @@
   "tokenizers": {
     "hi": {
       "model_file": "hindi/tokenizer/hi_unigram_8000.model",
-      "model_sha256": "3d712c2e84f1d181a62d051eb9f2cd5dc8d6943935ba8cbed6daea4f696e102b"
+      "model_sha256": "389e8c2c0d8e8643d717fe8c98cd5521d549ee1a08a1776d2bdde7f13f255b47"
     },
     "ne": {
       "model_file": "nepali/tokenizer/ne_unigram_8000.model",

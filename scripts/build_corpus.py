@@ -7,12 +7,12 @@ a 500M-token ingest never needs the raw text on disk.
 
 Usage::
 
-    python scripts/build_corpus.py --config bengali/configs/pipeline.yaml \
-        --sources bengali/configs/sources.yaml --profile sampled
+    python scripts/build_corpus.py --config hindi/configs/pipeline.yaml \
+        --sources hindi/configs/sources.yaml --profile sampled
 
     # Production run targeting ~500M training tokens:
-    python scripts/build_corpus.py --config assamese/configs/pipeline.yaml \
-        --sources assamese/configs/sources.yaml --profile full
+    python scripts/build_corpus.py --config nepali/configs/pipeline.yaml \
+        --sources nepali/configs/sources.yaml --profile full
 """
 
 from __future__ import annotations
@@ -27,7 +27,7 @@ sys.path.insert(0, str(REPO_ROOT))
 
 from lma.data.checkpoint import CheckpointManager, IngestState, truncate_jsonl_to
 from lma.data.clean import CleanerConfig, DocumentCleaner
-from lma.data.normalize import BengaliScriptNormalizer, get_profile
+from lma.data.normalize import IndicNormalizer, get_profile
 from lma.data.sources import iter_documents, load_manifest
 from lma.data.splits import SplitAssigner, SplitConfig, SplitWriter
 from lma.stats.corpus_stats import CorpusStatistics
@@ -104,7 +104,7 @@ def main() -> int:
     stats_dir = REPO_ROOT / paths["stats_dir"]
 
     # --- assemble the pipeline components ------------------------------------
-    normalizer = BengaliScriptNormalizer(get_profile(language))
+    normalizer = IndicNormalizer(get_profile(language))
     cleaner = DocumentCleaner(CleanerConfig(language=language, **config["cleaning"]))
     assigner = SplitAssigner(SplitConfig(**config["splits"]))
     statistics = CorpusStatistics(language=language)

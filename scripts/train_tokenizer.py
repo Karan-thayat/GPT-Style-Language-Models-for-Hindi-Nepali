@@ -11,16 +11,25 @@ Stages:
    piece statistics, token frequencies, and tokenization examples, all on
    held-out text.
 
+``--eval-only`` runs stage 3 against the tokenizer already in the language's
+tokenizer directory. This exists because a tokenizer may have been fitted in a
+different session (a long training run on Colab, say) while the evaluation that
+the report needs was never written; re-running the full script would refit the
+vocabulary and invalidate every artifact keyed to the current model file's hash.
+
 Usage::
 
     python scripts/train_tokenizer.py --config hindi/configs/pipeline.yaml --sweep
     python scripts/train_tokenizer.py --config nepali/configs/pipeline.yaml \
         --sweep --use-sweep-best
+    python scripts/train_tokenizer.py --config hindi/configs/pipeline.yaml \
+        --profile full --eval-only
 """
 
 from __future__ import annotations
 
 import argparse
+import hashlib
 import sys
 import time
 from pathlib import Path
@@ -55,7 +64,138 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--heldout-docs", type=int, default=3000, help="Validation documents used for evaluation")
     parser.add_argument("--vocab-size", type=int, default=None, help="Override the final vocabulary size")
     parser.add_argument("--model-type", default=None, choices=["unigram", "bpe"], help="Override the algorithm")
+    parser.add_argument(
+        "--eval-only",
+        action="store_true",
+        help="Evaluate the tokenizer already in the tokenizer directory instead of fitting a new one",
+    )
+    parser.add_argument(
+        "--sweep-max-lines",
+        type=int,
+        default=None,
+        help="Training lines per sweep candidate, overriding the profile's sweep_max_train_lines",
+    )
     return parser.parse_args()
+
+
+def file_sha256(path: Path) -> str:
+    """Return the SHA-256 of a file, so a report can be tied to the exact model it measured."""
+    digest = hashlib.sha256()
+    with Path(path).open("rb") as handle:
+        for block in iter(lambda: handle.read(1 << 20), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def locate_existing_tokenizer(tokenizer_dir: Path, language: str, model_type: str, vocab_size: int) -> Path:
+    """Find the trained ``.model`` file to evaluate in ``--eval-only`` mode.
+
+    The configured name is preferred so that evaluation matches the configuration
+    the rest of the pipeline assumes. A single unambiguous alternative is accepted
+    as a fallback; two or more are refused rather than guessed, because silently
+    measuring the wrong vocabulary would put wrong numbers in the report.
+
+    Args:
+        tokenizer_dir: The language's tokenizer directory.
+        language: ISO code.
+        model_type: Configured algorithm.
+        vocab_size: Configured vocabulary size.
+
+    Returns:
+        Path to the ``.model`` file.
+    """
+    expected = tokenizer_dir / f"{language}_{model_type}_{vocab_size}.model"
+    if expected.exists():
+        return expected
+
+    candidates = sorted(tokenizer_dir.glob(f"{language}_*.model"))
+    if not candidates:
+        raise SystemExit(
+            f"--eval-only found no tokenizer in {tokenizer_dir}. Expected {expected.name}; "
+            "run this script without --eval-only to train one."
+        )
+    if len(candidates) > 1:
+        names = ", ".join(c.name for c in candidates)
+        raise SystemExit(
+            f"--eval-only found several tokenizers in {tokenizer_dir} ({names}) and none matches "
+            f"the configured {expected.name}. Pass --vocab-size/--model-type to disambiguate."
+        )
+    return candidates[0]
+
+
+def evaluate_and_report(
+    manifest: dict,
+    heldout: list[str],
+    config: dict,
+    stats_dir: Path,
+    logger,
+    sweep_ran: bool,
+) -> int:
+    """Measure a trained tokenizer on held-out text and write ``tokenizer_stats.json``.
+
+    This is stage 3, shared by the training path and ``--eval-only`` so both write
+    exactly the same report structure.
+
+    Args:
+        manifest: Training manifest, or the equivalent record for a tokenizer
+            trained in an earlier run.
+        heldout: Held-out validation documents, never seen by the tokenizer.
+        config: Resolved pipeline configuration for this language.
+        stats_dir: Directory to write the report into.
+        logger: Logger for the human-readable summary.
+        sweep_ran: Whether a vocabulary sweep was part of this run.
+
+    Returns:
+        Process exit code.
+    """
+    language = config["language"]
+    model_file = Path(manifest["model_file"])
+    # Recording the hash is what makes a stale report detectable: if the tokenizer
+    # is refitted later, these metrics no longer describe the model on disk, and
+    # scripts/check_phase1.py can say so instead of the report quietly drifting.
+    manifest.setdefault("model_sha256", file_sha256(model_file))
+    evaluator = TokenizerEvaluator(model_file, language)
+    metrics = evaluator.evaluate(heldout)
+    piece_stats = evaluator.piece_statistics()
+    frequencies = evaluator.token_frequency(heldout)
+    examples = evaluator.examples(heldout, max_examples=12)
+
+    report = {
+        "language": language,
+        "language_name": config["language_name"],
+        "model": config["model"],
+        "training_manifest": manifest,
+        "heldout_documents": len(heldout),
+        "metrics": metrics.as_dict(),
+        "piece_statistics": piece_stats,
+        "token_frequency": frequencies,
+        "examples": examples,
+        "sweep_ran": sweep_ran,
+    }
+    write_json(stats_dir / "tokenizer_stats.json", report)
+
+    logger.info("--- Held-out tokenizer metrics (%s) ---", language)
+    logger.info("Vocabulary size:       %d", metrics.vocab_size)
+    logger.info("Fertility:             %.4f tokens/word", metrics.fertility)
+    if metrics.fertility <= 1.0:
+        # Fertility <= 1 means words are not being split into subwords at all,
+        # which the assignment rules out: sub-word tokenization is the point.
+        logger.warning(
+            "Fertility %.4f is not > 1.0 - this tokenizer is not segmenting into subwords.",
+            metrics.fertility,
+        )
+    logger.info("Unknown rate:          %.3e", metrics.unk_rate)
+    logger.info("Byte-fallback rate:    %.4f%% (script only: %.4f%%)",
+                100 * metrics.byte_fallback_rate, 100 * metrics.script_byte_fallback_rate)
+    logger.info("Chars per token:       %.3f", metrics.chars_per_token)
+    logger.info("Bytes per token:       %.3f", metrics.bytes_per_token)
+    logger.info("Single-token words:    %.1f%%", 100 * metrics.single_token_word_rate)
+    logger.info("Vocab utilization:     %.1f%% of pieces seen in held-out text",
+                100 * frequencies.get("vocab_utilization", 0.0))
+    roundtrip_failures = sum(1 for ex in examples if not ex["roundtrip_ok"])
+    logger.info("Round-trip failures:   %d of %d examples", roundtrip_failures, len(examples))
+    logger.info("Wrote %s", stats_dir / "tokenizer_stats.json")
+    return 0
 
 
 def main() -> int:
@@ -107,7 +247,9 @@ def main() -> int:
     if args.sweep:
         sizes = tokenizer_cfg["sweep_vocab_sizes"]
         types = tokenizer_cfg["sweep_model_types"]
-        logger.info("Sweeping vocab sizes %s over model types %s", sizes, types)
+        sweep_lines = args.sweep_max_lines or profile.get("sweep_max_train_lines")
+        logger.info("Sweeping vocab sizes %s over model types %s on %s training lines",
+                    sizes, types, f"{sweep_lines:,}" if sweep_lines else "all")
         started = time.monotonic()
         sweep_results = sweep_vocabulary_sizes(
             train_files=[train_file],
@@ -115,7 +257,7 @@ def main() -> int:
             language=language,
             vocab_sizes=sizes,
             model_types=types,
-            max_train_lines=profile.get("sweep_max_train_lines"),
+            max_train_lines=sweep_lines,
         )
         logger.info("Sweep finished in %.1fs", time.monotonic() - started)
 
@@ -145,6 +287,8 @@ def main() -> int:
 
         write_json(stats_dir / "tokenizer_sweep.json", {
             "language": language,
+            "training_lines_per_candidate": sweep_lines,
+            "heldout_documents": len(heldout),
             "results": sweep_results,
             "selected": best,
             "selection_rule": (
@@ -167,7 +311,32 @@ def main() -> int:
             },
         })
 
-    # --- stage 2: final training ----------------------------------------------
+    # --- stage 2: final training (skipped when only evaluating) -----------------
+    if args.eval_only:
+        model_file = locate_existing_tokenizer(tokenizer_dir, language, chosen_type, chosen_vocab)
+        manifest = {
+            "model_file": str(model_file),
+            "vocab_file": str(model_file.with_suffix(".vocab")),
+            "model_sha256": file_sha256(model_file),
+            "trained_in_this_run": False,
+            "corpus_files": [str(train_file)],
+            "config": {
+                "language": language,
+                "model_type": chosen_type,
+                "vocab_size": chosen_vocab,
+                "character_coverage": tokenizer_cfg["character_coverage"],
+                "byte_fallback": tokenizer_cfg["byte_fallback"],
+                "split_digits": tokenizer_cfg["split_digits"],
+                "normalization_rule_name": tokenizer_cfg["normalization_rule_name"],
+                "seed": tokenizer_cfg["seed"],
+            },
+        }
+        logger.info("Evaluating existing tokenizer %s (sha256 %s)",
+                    model_file.name, manifest["model_sha256"][:12])
+        return evaluate_and_report(
+            manifest, heldout, config, stats_dir, logger, sweep_ran=False
+        )
+
     final_config = TokenizerConfig(
         language=language,
         model_type=chosen_type,
@@ -194,47 +363,9 @@ def main() -> int:
                 f"{manifest['training_lines']:,}", time.monotonic() - started, manifest["model_file"])
 
     # --- stage 3: evaluation ---------------------------------------------------
-    evaluator = TokenizerEvaluator(Path(manifest["model_file"]), language)
-    metrics = evaluator.evaluate(heldout)
-    piece_stats = evaluator.piece_statistics()
-    frequencies = evaluator.token_frequency(heldout)
-    examples = evaluator.examples(heldout, max_examples=12)
-
-    report = {
-        "language": language,
-        "language_name": config["language_name"],
-        "model": config["model"],
-        "training_manifest": manifest,
-        "heldout_documents": len(heldout),
-        "metrics": metrics.as_dict(),
-        "piece_statistics": piece_stats,
-        "token_frequency": frequencies,
-        "examples": examples,
-        "sweep_ran": bool(sweep_results),
-    }
-    write_json(stats_dir / "tokenizer_stats.json", report)
-
-    logger.info("--- Held-out tokenizer metrics (%s) ---", language)
-    logger.info("Vocabulary size:       %d", metrics.vocab_size)
-    logger.info("Fertility:             %.4f tokens/word", metrics.fertility)
-    if metrics.fertility <= 1.0:
-        # Fertility <= 1 means words are not being split into subwords at all,
-        # which the assignment rules out: sub-word tokenization is the point.
-        logger.warning(
-            "Fertility %.4f is not > 1.0 - this tokenizer is not segmenting into subwords.",
-            metrics.fertility,
-        )
-    logger.info("Unknown rate:          %.3e", metrics.unk_rate)
-    logger.info("Byte-fallback rate:    %.4f%%", 100 * metrics.byte_fallback_rate)
-    logger.info("Chars per token:       %.3f", metrics.chars_per_token)
-    logger.info("Bytes per token:       %.3f", metrics.bytes_per_token)
-    logger.info("Single-token words:    %.1f%%", 100 * metrics.single_token_word_rate)
-    logger.info("Vocab utilization:     %.1f%% of pieces seen in held-out text",
-                100 * frequencies.get("vocab_utilization", 0.0))
-    roundtrip_failures = sum(1 for ex in examples if not ex["roundtrip_ok"])
-    logger.info("Round-trip failures:   %d of %d examples", roundtrip_failures, len(examples))
-    logger.info("Wrote %s", stats_dir / "tokenizer_stats.json")
-    return 0
+    return evaluate_and_report(
+        manifest, heldout, config, stats_dir, logger, sweep_ran=bool(sweep_results)
+    )
 
 
 if __name__ == "__main__":

@@ -319,7 +319,3 @@ class IndicNormalizer:
         """Alias for :meth:`normalize`."""
         return self.normalize(text)
 
-
-#: Backwards-compatible alias. The class was named for the Bengali script before
-#: Hindi became Model H; the implementation is script-parameterized now.
-BengaliScriptNormalizer = IndicNormalizer

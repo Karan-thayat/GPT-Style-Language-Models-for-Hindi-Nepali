@@ -15,8 +15,8 @@ here so Phase 1 stays about data and tokenizers.
 
 Usage::
 
-    python scripts/tokenize_corpus.py --config bengali/configs/pipeline.yaml
-    python scripts/tokenize_corpus.py --config assamese/configs/pipeline.yaml --write-bin
+    python scripts/tokenize_corpus.py --config hindi/configs/pipeline.yaml
+    python scripts/tokenize_corpus.py --config nepali/configs/pipeline.yaml --write-bin
 """
 
 from __future__ import annotations
@@ -96,6 +96,11 @@ def main() -> int:
         tokens = 0
         characters = 0
         utf8_bytes = 0
+        # The manual-collection requirement is stated in tokens, not words, and
+        # manual prose does not tokenize at the same rate as downloaded web text.
+        # Each document carries the collection it came from, so the split is
+        # accumulated here rather than approximated from the word-based figure.
+        tokens_by_collection: dict[str, int] = {}
         buffer: list[np.ndarray] = [] if args.write_bin else []
 
         for row in iter_jsonl(split_file):
@@ -107,6 +112,8 @@ def main() -> int:
             tokens += len(ids)
             characters += len(text)
             utf8_bytes += len(text.encode("utf-8"))
+            collection = row.get("collection", "unknown")
+            tokens_by_collection[collection] = tokens_by_collection.get(collection, 0) + len(ids)
             if args.write_bin:
                 buffer.append(np.asarray(ids, dtype=dtype))
 
@@ -119,6 +126,7 @@ def main() -> int:
             "chars_per_token": characters / tokens if tokens else 0.0,
             "bytes_per_token": utf8_bytes / tokens if tokens else 0.0,
             "tokens_per_document": tokens / documents if documents else 0.0,
+            "by_collection": dict(sorted(tokens_by_collection.items())),
             "seconds": elapsed,
         }
 
@@ -141,6 +149,11 @@ def main() -> int:
     total_tokens = sum(entry["tokens"] for entry in results.values())
     shortfall = max(0, args.target_tokens - train_tokens)
 
+    # The assignment's ">= 20% manual" floor applies to the training tokens, so it
+    # is computed on the training split alone.
+    by_collection = results.get("train", {}).get("by_collection", {})
+    manual_tokens = by_collection.get("manual", 0)
+
     report = {
         "language": language,
         "language_name": config["language_name"],
@@ -150,6 +163,8 @@ def main() -> int:
         "per_split": results,
         "train_tokens": train_tokens,
         "total_tokens": total_tokens,
+        "by_collection": dict(sorted(by_collection.items())),
+        "manual_token_fraction": manual_tokens / train_tokens if train_tokens else None,
         "target_train_tokens": args.target_tokens,
         "target_met": train_tokens >= args.target_tokens,
         "shortfall_tokens": shortfall,
@@ -160,6 +175,13 @@ def main() -> int:
     logger.info("--- Exact token counts (%s) ---", language)
     logger.info("Training tokens: %s", f"{train_tokens:,}")
     logger.info("All splits:      %s", f"{total_tokens:,}")
+    if report["manual_token_fraction"] is not None:
+        logger.info(
+            "Manual share:    %.2f%% of training tokens (%s manual, %s downloaded)",
+            100 * report["manual_token_fraction"],
+            f"{manual_tokens:,}",
+            f"{by_collection.get('downloaded', 0):,}",
+        )
     logger.info(
         "Target %s: %s (%.1f%% achieved)",
         f"{args.target_tokens:,}",

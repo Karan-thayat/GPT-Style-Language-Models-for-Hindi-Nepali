@@ -39,6 +39,10 @@ from ..tokenizer.train_tokenizer import TokenizerConfig, TokenizerTrainer, train
 _RE_WORD = re.compile(r"[^\s]+")
 #: SentencePiece renders byte-fallback pieces as <0xNN>.
 _RE_BYTE_PIECE = re.compile(r"^<0x[0-9A-Fa-f]{2}>$")
+#: The Devanagari block (U+0900-U+097F). Both corpora are written in this script,
+#: so a piece containing one of these characters is a piece of the language rather
+#: than of the Latin/symbol tail that character coverage leaves behind.
+DEVANAGARI_FIRST, DEVANAGARI_LAST = "\u0900", "\u097f"
 
 
 @dataclass
@@ -96,12 +100,13 @@ class TokenizerMetrics:
 
         SentencePiece is trained on one-line-per-sentence input, so it never learns
         a piece for the newline character; every line break in a multi-line document
-        therefore costs one ``<0x0A>`` byte token. Measured on the Assamese corpus,
-        that artifact accounted for ~85% of all byte-fallback tokens (3.58% of
-        tokens, against 0.65% genuine coverage failures). Including it would make a
-        formatting property of the corpus look like a vocabulary deficiency, and
-        would make the metric grow with document length rather than with how much of
-        the language the vocabulary actually covers.
+        therefore costs one ``<0x0A>`` byte token. The measured split between that
+        artifact and genuine coverage failures is recorded per language in
+        ``<language>/reports/tokenizer_stats.json`` and reported in the Phase 1
+        report. Including it would make a formatting property of the corpus look
+        like a vocabulary deficiency, and would make the metric grow with document
+        length rather than with how much of the language the vocabulary actually
+        covers.
         """
         script_bytes = self.byte_fallback_tokens - self.whitespace_byte_tokens
         return script_bytes / self.tokens if self.tokens else 0.0
@@ -259,7 +264,7 @@ class TokenizerEvaluator:
             if piece.startswith("▁"):
                 whole_word_pieces += 1
             lengths.append(len(body))
-            if any("ঀ" <= ch <= "৿" for ch in body):
+            if any(DEVANAGARI_FIRST <= ch <= DEVANAGARI_LAST for ch in body):
                 script_pieces += 1
             if any("a" <= ch.lower() <= "z" for ch in body):
                 latin_pieces += 1
@@ -273,7 +278,7 @@ class TokenizerEvaluator:
         return {
             "vocab_size": self.vocab_size,
             "byte_fallback_pieces": byte_pieces,
-            "bengali_script_pieces": script_pieces,
+            "script_pieces": script_pieces,
             "latin_pieces": latin_pieces,
             "word_initial_pieces": whole_word_pieces,
             "mean_piece_length_chars": mean_length,

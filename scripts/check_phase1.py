@@ -159,6 +159,89 @@ def check_requirements(checklist: Checklist) -> None:
             )
 
 
+def check_tokenizer_report(checklist: Checklist) -> None:
+    """Verify the tokenizer reporting the assignment asks for in §1.3.
+
+    Existence of a ``.model`` file is not evidence that anything was reported
+    about it: §1.3 requires vocabulary size, token-frequency statistics, average
+    characters per token, tokenization examples, and unknown-token statistics. A
+    tokenizer trained in a different session can leave the model on disk with no
+    measurements behind it, and the report then renders empty cells while every
+    file-existence check still passes - which is exactly what happened once.
+    """
+    print("\n[Tokenizer reporting]")
+
+    import hashlib
+
+    for language, (directory, model) in LANGUAGES.items():
+        stats_path = REPO_ROOT / directory / "reports/tokenizer_stats.json"
+        if not stats_path.exists():
+            checklist.add(
+                f"Tokenizer metrics reported ({model}, {language})",
+                False,
+                "tokenizer_stats.json missing - run scripts/train_tokenizer.py --eval-only",
+            )
+            continue
+
+        stats = read_json(stats_path)
+        metrics = stats.get("metrics", {})
+        missing = [
+            field
+            for field in ("vocab_size", "fertility", "unk_rate", "chars_per_token")
+            if metrics.get(field) is None
+        ]
+        if not stats.get("examples"):
+            missing.append("examples")
+        if not stats.get("token_frequency", {}).get("top_tokens"):
+            missing.append("token_frequency")
+        checklist.add(
+            f"Tokenizer metrics reported ({model}, {language})",
+            not missing,
+            f"missing: {missing}" if missing else
+            f"fertility {metrics['fertility']:.3f}, unk {metrics['unk_rate']:.1e}, "
+            f"{metrics['chars_per_token']:.2f} chars/token",
+        )
+
+        # Sub-word tokenization is a stated requirement, not a nicety: a fertility
+        # at or below 1.0 means words are not being split at all.
+        if metrics.get("fertility"):
+            checklist.add(
+                f"Fertility > 1 (sub-word) ({model}, {language})",
+                metrics["fertility"] > 1.0,
+                f"{metrics['fertility']:.3f} tokens/word",
+            )
+
+        # The metrics must describe the tokenizer that is actually shipped.
+        recorded = stats.get("training_manifest", {}).get("model_sha256")
+        model_file = Path(stats.get("training_manifest", {}).get("model_file", ""))
+        if recorded and model_file.exists():
+            digest = hashlib.sha256()
+            with model_file.open("rb") as handle:
+                for block in iter(lambda: handle.read(1 << 20), b""):
+                    digest.update(block)
+            matches = digest.hexdigest() == recorded
+            checklist.add(
+                f"Metrics match the shipped tokenizer ({model}, {language})",
+                matches,
+                "" if matches else "tokenizer was refitted after these metrics were measured",
+            )
+
+    # Finally, the rendered report must not still be showing the placeholders.
+    report = REPO_ROOT / "report/phase1_report.md"
+    if report.exists():
+        text = report.read_text(encoding="utf-8")
+        placeholders = [
+            phrase
+            for phrase in ("_Tokenizer has not been trained._", "_Sweep has not been run._")
+            if phrase in text
+        ]
+        checklist.add(
+            "Report has no unrendered tokenizer sections",
+            not placeholders,
+            f"still present: {placeholders}" if placeholders else "",
+        )
+
+
 def check_constraints(checklist: Checklist) -> None:
     """Verify the assignment's hard constraints."""
     print("\n[Hard constraints]")
@@ -209,6 +292,7 @@ def main() -> int:
     checklist = Checklist()
     check_deliverables(checklist)
     check_requirements(checklist)
+    check_tokenizer_report(checklist)
     check_constraints(checklist)
 
     print("\n" + checklist.render())
