@@ -304,7 +304,7 @@ Per the submission instructions, large artifacts are hosted on Google Drive rath
 than committed to git. The tokenizer models and vocabularies are small and **are**
 in this repository, under `hindi/tokenizer/` and `nepali/tokenizer/`.
 
-**Drive folder:** _<paste the shareable link to `LMA-Individual-Project/` here>_
+**Drive folder:** <https://drive.google.com/drive/folders/1ggiw-RzYTUgkXLhky2u73tObkw7MKbJT?usp=drive_link>
 
 Permissions are set to **"Anyone with the link → Viewer"**, so the folder opens
 without an access request.
@@ -333,11 +333,11 @@ provenance is recorded in `hindi/configs/sources.yaml` and
 
 | Artifact | Phase | Size | Link |
 |---|---|---|---|
-| Hindi processed splits (Model H) | 1 | 5.23 GB | _to be added_ |
-| Nepali processed splits (Model L) | 1 | 6.61 GB | _to be added_ |
-| Hindi manual-collection sources | 1 | 1.31 GB | _to be added_ |
-| Nepali manual-collection sources | 1 | 4.36 GB | _to be added_ |
-| Public source corpora (optional) | 1 | 11.56 GB | _to be added_ |
+| Hindi processed splits (Model H) | 1 | 5.23 GB | [`phase1-processed/hindi/`](https://drive.google.com/drive/folders/1ggiw-RzYTUgkXLhky2u73tObkw7MKbJT?usp=drive_link) |
+| Nepali processed splits (Model L) | 1 | 6.61 GB | [`phase1-processed/nepali/`](https://drive.google.com/drive/folders/1ggiw-RzYTUgkXLhky2u73tObkw7MKbJT?usp=drive_link) |
+| Hindi manual-collection sources | 1 | 1.31 GB | [`phase1-manual/hindi/`](https://drive.google.com/drive/folders/1ggiw-RzYTUgkXLhky2u73tObkw7MKbJT?usp=drive_link) |
+| Nepali manual-collection sources | 1 | 4.36 GB | [`phase1-manual/nepali/`](https://drive.google.com/drive/folders/1ggiw-RzYTUgkXLhky2u73tObkw7MKbJT?usp=drive_link) |
+| Public source corpora (optional) | 1 | 11.56 GB | [`phase1-sources/`](https://drive.google.com/drive/folders/1ggiw-RzYTUgkXLhky2u73tObkw7MKbJT?usp=drive_link) |
 | Model H pretrained checkpoint | 2 | — | _pending_ |
 | Model L pretrained checkpoint | 2 | — | _pending_ |
 | Model H / L finetuned checkpoints | 3 | — | _pending_ |
