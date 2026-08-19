@@ -181,13 +181,13 @@ Overall: **PASSED**
 
 | Statistic | Hindi (Model H) | Nepali (Model L) |
 |---|---:|---:|
-| Documents kept | 940,135 | 774,236 |
-| Documents seen (pre-filter) | 985,160 | 879,912 |
-| Keep rate | 95.4% | 88.0% |
-| Words | 392,113,765 | 364,030,498 |
-| Characters | 2,037,674,441 | 2,462,137,481 |
-| Sentences | 19,035,562 | 26,774,625 |
-| Mean words/document | 417.1 | 470.2 |
+| Documents kept | 940,329 | 774,236 |
+| Documents seen (pre-filter) | 1,003,143 | 879,912 |
+| Keep rate | 93.7% | 88.0% |
+| Words | 392,120,217 | 364,030,498 |
+| Characters | 2,037,864,237 | 2,462,137,481 |
+| Sentences | 19,262,707 | 26,774,625 |
+| Mean words/document | 417.0 | 470.2 |
 | Mean chars/word | 5.20 | 6.76 |
 | Median document length (words) | 290 | 248 |
 | Word types (distinct) | 3,000,001 | 3,000,006 |
@@ -195,7 +195,7 @@ Overall: **PASSED**
 | Bengali-script char ratio | — | — |
 | Manual collection share (words) | 19.1% | 58.0% |
 | Distinct characters | 6,395 | 3,093 |
-| **Training tokens (exact)** | **576,710,791** | **610,989,716** |
+| **Training tokens (exact)** | **578,319,564** | **610,989,716** |
 | Total tokens (all splits) | — | — |
 | Achieved vs 500M target | — | — |
 
@@ -231,11 +231,12 @@ Two honest caveats for the full run:
 | Source | Collection | Documents | Words | Share of words |
 |---|---|---:|---:|---:|
 | `indiccorp_hi` | downloaded | 751,876 | 317,299,220 | 80.9% |
+| `manual_authentic_hi` | manual | 12,516 | 7,302,413 | 1.9% |
 | `manual_bulk_hi` | manual | 31,252 | 17,773,162 | 4.5% |
 | `manual_news_crawled_hi` | manual | 2,002 | 1,179,016 | 0.3% |
 | `manual_ocr_hi` | manual | 12,518 | 3,236,184 | 0.8% |
 | `manual_scraped_news_hi` | manual | 20,258 | 8,920,220 | 2.3% |
-| `wikipedia_dump_hi` | manual | 122,229 | 43,705,963 | 11.1% |
+| `wikipedia_dump_hi` | manual | 109,907 | 36,410,002 | 9.3% |
 
 **Nepali (Model L)**
 
@@ -251,22 +252,22 @@ Two honest caveats for the full run:
 
 | Rejection reason | Hindi (Model H) | Nepali (Model L) |
 |---|---:|---:|
-| `exact_duplicate` | 14,804 | 33,730 |
-| `high_digit_ratio` | 284 | 110 |
+| `exact_duplicate` | 27,127 | 33,730 |
+| `high_digit_ratio` | 290 | 110 |
 | `high_gibberish_ratio` | 8 | 2 |
-| `high_symbol_ratio` | 3,597 | 348 |
-| `long_char_run` | 875 | 407 |
-| `low_script_ratio` | 17,258 | 31,028 |
+| `high_symbol_ratio` | 3,621 | 348 |
+| `long_char_run` | 881 | 407 |
+| `low_script_ratio` | 17,453 | 31,028 |
 | `mojibake` | 149 | 196 |
-| `repeated_lines` | 449 | 151 |
-| `repeated_ngram` | 1,940 | 1,504 |
+| `repeated_lines` | 1,970 | 151 |
+| `repeated_ngram` | 1,943 | 1,504 |
 | `too_long` | 43 | 0 |
-| `too_short_chars` | 4,015 | 12,114 |
-| `too_short_words` | 861 | 2,867 |
-| `wrong_language` | 742 | 9,723 |
+| `too_short_chars` | 7,697 | 12,114 |
+| `too_short_words` | 874 | 2,867 |
+| `wrong_language` | 758 | 9,723 |
 | `near_duplicate` | 0 | 13,495 |
-| **Total kept** | 940,135 | 774,236 |
-| **Total seen** | 985,160 | 879,912 |
+| **Total kept** | 940,329 | 774,236 |
+| **Total seen** | 1,003,143 | 879,912 |
 
 ---
 

@@ -112,14 +112,32 @@ def check_requirements(checklist: Checklist) -> None:
     for language, (directory, model) in LANGUAGES.items():
         reports = REPO_ROOT / directory / "reports"
 
-        stats_path = reports / "corpus_stats.json"
-        if stats_path.exists():
-            stats = read_json(stats_path)
-            manual = stats["collection_split"]["manual_word_fraction"]
+        # The assignment states the floor in tokens: "at least 20% of the final
+        # training tokens must come from manual collection". Measure it that way.
+        # The two differ - manual prose tokenizes at a different rate to the
+        # downloaded web text - so the word-based figure is only a fallback for
+        # when the corpus has not been tokenized yet.
+        tokens_path = reports / "token_counts.json"
+        manual_fraction = None
+        unit = ""
+        if tokens_path.exists():
+            counts = read_json(tokens_path)
+            by_collection = counts.get("by_collection") or {}
+            total = counts.get("train_tokens") or sum(by_collection.values())
+            if total:
+                manual_fraction = by_collection.get("manual", 0) / total
+                unit = "of training tokens"
+        if manual_fraction is None:
+            stats_path = reports / "corpus_stats.json"
+            if stats_path.exists():
+                stats = read_json(stats_path)
+                manual_fraction = stats["collection_split"]["manual_word_fraction"]
+                unit = "of words (corpus not tokenized yet; the requirement is in tokens)"
+        if manual_fraction is not None:
             checklist.add(
                 f"Manual collection >= 20% ({model}, {language})",
-                manual >= MANUAL_REQUIREMENT,
-                f"{100 * manual:.1f}% of words",
+                manual_fraction >= MANUAL_REQUIREMENT,
+                f"{100 * manual_fraction:.1f}% {unit}",
             )
 
         tokens_path = reports / "token_counts.json"

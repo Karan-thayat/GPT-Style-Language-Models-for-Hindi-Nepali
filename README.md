@@ -86,6 +86,9 @@ Verify the state of any checkout with:
 │   ├── check_phase1.py           # Deliverable and constraint checklist
 │   └── make_report.py            # Figures + Markdown report
 │
+├── notebooks/
+│   └── phase1_full_scale_colab.ipynb   # 500M-token run on Colab, checkpointed to Drive
+│
 ├── report/
 │   ├── phase1_report.md
 │   └── figures/
@@ -138,21 +141,14 @@ from a single shard (`verified/ben/data-0.parquet`) to all of them
 ## Running at full scale (~500M tokens)
 
 **Measured cost for the Bengali 500M ingest:** ~13.5 hours of CPU at 38k chars/sec,
-streaming tens of GB of source text. Both corpora in this submission were built on a
-7.6 GB laptop, which is possible but needs two settings that the configs already carry:
+streaming ~30 GB of Parquet across 77 shards. On a laptop with 7 GB RAM the
+deduplication index — one MinHash signature per kept document — will exhaust memory
+long before the run finishes. **Use Colab**, not a laptop.
 
-* `dedup_near: false` in each `pipeline.yaml`. Near-duplicate detection keeps one
-  MinHash signature per kept document in memory; on a corpus this size that index
-  grows past available RAM and the run is OOM-killed. Exact-hash deduplication stays
-  on, and on the Hindi run near-duplicates were only 0.19% of documents seen — far too
-  little to justify the cost.
-* `tokenizer_max_train_lines: 200000`, and the training text further trimmed to about
-  0.22 GB. SentencePiece loads every training sentence into memory before it samples,
-  so a 1 GB input needs roughly 5.5 GB of RAM; 0.22 GB trains in 77 seconds inside
-  1.6 GB.
-
-Ingest is checkpointed, so a run that is interrupted can be continued with `--resume`
-rather than restarted.
+[`notebooks/phase1_full_scale_colab.ipynb`](notebooks/phase1_full_scale_colab.ipynb)
+runs exactly this pipeline with the caps removed. Open it in Colab, set a **CPU**
+runtime (a GPU does nothing for this stage and spends quota you need for Phase 2),
+and work through it top to bottom.
 
 ### Checkpoint and resume
 

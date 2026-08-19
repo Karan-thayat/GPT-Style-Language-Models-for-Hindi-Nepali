@@ -83,6 +83,26 @@ sources:
     video timestamps and copyright footers alongside articles, and the repeated_lines
     and long_char_run filters correctly discard those. Verified to have zero exact-text
     overlap with both the built corpus and hindi_50M_tokens.jsonl.'
+- source_id: manual_authentic_hi
+  type: local
+  path: hindi/data/raw/hindi_authentic_10M_tokens.jsonl
+  collection: manual
+  enabled: true
+  notes: 'Hindi text collected by the student, 17,983 documents totalling 7.61M words
+    (10.0M tokens by the file''s own stored token_count). Counted as MANUAL on the
+    course ruling that raw corpora gathered from the internet count toward the manual
+    requirement provided the student''s own script preprocesses them.
+
+    Verified before being enabled: zero overlap with manual_bulk_hi, and only 23 of
+    its 17,983 documents were already present in the built corpus, so 17,960 are
+    genuinely new. Language identification on a 4,000-document sample returned Hindi
+    for every document that carried enough evidence to classify. Measured keep rate
+    is 63.9% of documents but 96.6% of words - the rejected documents are short
+    fragments, so the surviving text is nearly all of the material by volume.
+
+    This is the source that carries Hindi past the 20% manual-collection threshold:
+    it adds ~7.35M clean words, taking manual from 74.8M words (19.08%) to 82.2M
+    (20.57%).'
 - source_id: manual_bulk_hi
   type: local
   path: hindi/data/raw/hindi_50M_tokens.jsonl

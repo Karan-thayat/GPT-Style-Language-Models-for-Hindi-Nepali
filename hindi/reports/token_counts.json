@@ -1,8 +1,9 @@
 {
- "train_tokens": 576710791,
+ "train_tokens": 578319564,
  "by_collection": {
-  "downloaded": 452827253,
-  "manual": 123883538
+  "downloaded": 453409183,
+  "manual": 124910381
  },
- "documents": 921412
+ "documents": 921582,
+ "manual_token_fraction": 0.21598851011721956
 }
