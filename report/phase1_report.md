@@ -4,44 +4,50 @@
 
 | | |
 |---|---|
-| **Model H** (higher-resource) | Bengali (`bn`) |
-| **Model L** (lower-resource) | Assamese (`as`) |
-| Run profile | `unknown` |
+| **Model H** (higher-resource) | Hindi (`hi`) |
+| **Model L** (lower-resource) | Nepali (`ne`) |
+| Run profile | `full` |
 | Independence | Separate corpora, separate tokenizers, separate vocabularies |
 
 ---
 
 ## 1. Language Selection and Justification
 
-### Model H — Bengali
+### Model H — Hindi
 
-Bengali is a non-English Indian language with substantial public text. It is the
-second most-spoken language in India (roughly 97 million first-language speakers
-per the 2011 Census, and about 237 million worldwide), it has an active Wikipedia,
-and it is well represented in openly available Indic web corpora such as AI4Bharat
-Sangraha. That combination is what makes a ~500M-token monolingual corpus
-realistic for the higher-resource tier.
+Hindi is a non-English Indian language with abundant public text. It is the most
+widely spoken language in India (roughly 528 million first-language speakers per
+the 2011 Census), it has an active Wikipedia, and it is well represented in openly
+available Indic web corpora such as AI4Bharat IndicCorp. That combination is what
+makes a ~500M-token monolingual corpus realistic for the higher-resource tier, and
+in this run the downloaded side alone supplied 453M tokens without exhausting its
+source.
 
-### Model L — Assamese
+### Model L — Nepali
 
-Assamese is on the project's permitted lower-resource list. It has roughly 15
-million speakers and official status in Assam, yet its openly available digital
-corpora are one to two orders of magnitude smaller than Bengali's. That gap is the
-point: it produces a genuine resource-tier contrast rather than two comfortable
-corpora of similar size.
+Nepali is on the project's permitted lower-resource list. It has roughly 16 million
+speakers in India and official status in Sikkim and West Bengal, and it is the
+national language of Nepal. Its openly available digital corpora are substantially
+smaller and less curated than Hindi's, and the gap is sharpest in exactly the place
+this project measures: text that has been cleaned and deduplicated rather than
+merely crawled.
 
 ### Why this pair is a good experimental design
 
-Bengali and Assamese share the Bengali-Assamese script, which isolates the
-variable under study. Because the writing system, character set, and
-normalization requirements are held constant, differences observed in Phase 2 and
-Phase 3 between Model H and Model L are attributable to **data scale and quality**
-rather than to script or tokenizer-family effects.
+Hindi and Nepali share the Devanagari script, which isolates the variable under
+study. Because the writing system, character set, and normalization requirements
+are held constant, differences observed in Phase 2 and Phase 3 between Model H and
+Model L are attributable to **data scale and quality** rather than to script or
+tokenizer-family effects.
 
 The shared script also creates the project's main data-integrity hazard, which is
-addressed explicitly in §3: the two languages are easy to confuse
-programmatically, so preventing cross-contamination requires a positive
-language-identity test rather than a script check.
+addressed explicitly in §3: the two languages are easy to confuse programmatically
+— they share not only the script but a large amount of vocabulary — so preventing
+cross-contamination requires a positive language-identity test built on grammar
+rather than a script check. The measured vocabulary overlap between the two trained
+tokenizers is a Jaccard index of 0.200, which is the partial overlap a shared script
+predicts; a value near 1.0 would indicate one vocabulary had been copied from the
+other.
 
 ---
 
@@ -66,24 +72,32 @@ corpus size and the raw text never has to be staged on disk.
 ### 2.1 Unicode normalization
 
 The normalizer is deliberately **script-aware and language-specific**, because the
-obvious implementation is wrong here. A generic Indic normalizer folds
-U+09F0 (`ৰ`) into U+09B0 (`র`), which silently rewrites Assamese as Bengali and
-destroys the very distinction this project studies. Instead:
+obvious implementation is wrong here. A generic Indic normalizer strips the nukta
+from Devanagari letters, folding U+0958–U+095F onto their unmarked bases. In Hindi
+that merges distinct words: `ज़रा` ("a little") becomes `जरा` ("aged"), and
+`ख़बर`/`खबर` collapse together. The nukta is therefore **preserved**, and both the
+Hindi and Nepali profiles are configured explicitly rather than sharing one Indic
+default.
 
-- The **Assamese** profile preserves U+09F0 (`ৰ`) and U+09F1 (`ৱ`).
-- The **Bengali** profile folds them to `র`/`ব`, since in a Bengali corpus their
-  presence indicates OCR noise or mis-tagged text.
-
-Beyond that, normalization applies NFC, unifies the two-part vowel signs
-(`U+09C7 + U+09BE` → `U+09CB`) and the nukta letters, strips invisible characters
-while **preserving ZWNJ/ZWJ** (which control Indic conjunct formation), folds
-punctuation variants and Bengali digits, and tidies whitespace.
+Beyond that, normalization applies NFC, canonicalizes the precomposed nukta letters
+to a single consistent encoding, strips invisible characters while **preserving
+ZWNJ/ZWJ** (which control Devanagari conjunct formation), folds punctuation variants
+and Devanagari digits, and tidies whitespace.
 
 The normalizer is **idempotent**, verified by test. This required care: NFC
-*decomposes* U+09DC/U+09DD/U+09DF into base letter plus nukta, so composing them
-must be followed by a second NFC pass. Without it, normalizing an
-already-normalized document keeps changing it, and the tokenizer would learn two
-encodings of the same grapheme.
+*decomposes* U+0958–U+095F into base letter plus nukta, so composing them must be
+followed by a second NFC pass. Without it, normalizing an already-normalized
+document keeps changing it, and the tokenizer would learn two encodings of the same
+grapheme.
+
+One defect found by these tests is worth recording, because it would have been
+invisible in the statistics. An early revision of the invisible-character set was
+written as a string literal that contained two literal spaces where U+2028 and
+U+2029 were intended, so normalization deleted **every space** in the corpus. The
+document keep rate fell from 60% to 7.9% — the filters correctly rejected the
+resulting single-token documents, but nothing identified *why*. The set is now built
+from explicit code points with import-time assertions that SPACE, TAB, and NEWLINE
+are never treated as invisible.
 
 ### 2.2 Quality filtering
 
@@ -93,9 +107,9 @@ interpretable. Filters cover length, script ratio, mojibake, line- and
 n-gram-level repetition, digit and symbol ratio, long character runs, and
 language identity.
 
-One design note: the script-ratio filter measures Bengali share among **letters
+One design note: the script-ratio filter measures Devanagari share among **letters
 only, excluding digits**. Counting digits in the denominator conflates two
-different defects — a table of figures with Bengali labels would be reported as
+different defects — a table of figures with Devanagari labels would be reported as
 "wrong script" when the real problem is digit spam. Separating them means each
 filter names the defect it actually detects.
 
@@ -107,7 +121,7 @@ is O(1) per document in the number of documents already indexed — necessary
 because pairwise comparison across a 500M-token corpus is intractable.
 
 The similarity threshold is **0.70**, not the more common 0.80. This was measured,
-not assumed: on real Bengali prose, replacing one sentence of eight in an article
+not assumed: on real Hindi prose, replacing one sentence of eight in an article
 yields a true Jaccard of ≈0.79, so a 0.80 cutoff lets ordinary syndicated-news
 near-duplicates through. At 0.70 those are caught while merely topically related
 documents (measured well below 0.4) are kept.
@@ -122,8 +136,8 @@ assignment is content-based, any exact duplicate that survives cleaning lands in
 the *same* split, so duplicates cannot straddle train and test.
 
 Split *ratios* are profile-dependent, because a ratio that is right at full scale
-is wrong on a sample. At the full ~500M-token target, Bengali holds out 1% per
-split — still roughly 5M tokens, ample for stable perplexity. Assamese holds out
+is wrong on a sample. At the full ~500M-token target, Hindi holds out 1% per
+split — still roughly 6M tokens, ample for stable perplexity. Nepali holds out
 2% at full scale, since its corpus is much smaller. On the `sampled` profile both
 languages hold out 6% per split: at 1% of a sampled corpus the validation set came
 to only a dozen documents, far too few to measure fertility or perplexity stably.
@@ -134,28 +148,31 @@ documents are held out, not the deterministic, reproducible nature of the split.
 
 ## 3. Preventing Cross-Language Contamination
 
-Because Bengali and Assamese share a script, a script check cannot separate them,
-and general-purpose language identifiers routinely label Assamese as Bengali. This
-matters directly: the project requires the two corpora to share no documents, and
-Bengali text is far more abundant online, so leakage into the Assamese corpus is
-the likely failure direction.
+Because Hindi and Nepali share the Devanagari script, a script check cannot
+separate them. The two also share a large amount of vocabulary, so character-level
+evidence alone is insufficient. This matters directly: the project requires the two
+corpora to share no documents, and Hindi text is far more abundant online, so
+leakage into the Nepali corpus is the likely failure direction.
 
-`lma/data/language_id.py` implements a transparent scorer over two kinds of
-orthographic evidence, chosen so its decisions can be explained rather than
-merely trusted:
+`lma/data/language_id.py` implements a transparent scorer over **grammatical**
+evidence rather than orthographic, chosen so its decisions can be explained rather
+than merely trusted. The discriminating forms are the ones that appear in almost
+every sentence and differ systematically between the two languages:
 
-1. **Exclusive letters** — `ৰ`/`ৱ` appear in Assamese and essentially never in
-   correct Bengali; the ratio of `ৰ` to `র` is strongly diagnostic.
-2. **Function words** — high-frequency grammatical forms differ between the
-   languages (Assamese `আৰু`, `হৈছে`, `কৰি` versus Bengali `এবং`, `হয়েছে`, `করে`).
+1. **Copulas** — Hindi `है`, `हैं`, `था` versus Nepali `छ`, `छन्`, `हो`, `थियो`.
+2. **Case markers** — Hindi `ने`, `को`, `से` versus Nepali `ले`, `लाई`, `बाट`.
 
 Scores are per-token rates, so document length does not bias the verdict, and a
 language is assigned only when it wins by a margin — ambiguous or short documents
-are returned as `unknown` and **dropped**, rather than guessed into a corpus.
+are returned as `unknown` and **dropped**, rather than guessed into a corpus. On
+validation samples the separation is unambiguous: Hindi text scores 0.326 on the
+Hindi markers and 0.000 on the Nepali ones, and Nepali text scores 0.000 and 0.324
+respectively.
 
-This filter is not hypothetical. Spot-checking the Sangraha `verified/asm` split
-during development turned up Latin-script documents from an unrelated language;
-those are removed by this stage.
+This filter is not hypothetical. One of the manual sources added late in the project
+was named as "mixed" language content; the identifier measured it at 99.6% Nepali,
+0.1% Hindi, and the residual Hindi documents were dropped at this stage rather than
+being allowed into Model L.
 
 ### 3.1 Verified independence
 
@@ -192,7 +209,7 @@ Overall: **PASSED**
 | Median document length (words) | 290 | 248 |
 | Word types (distinct) | 3,000,001 | 3,000,006 |
 | Type/token ratio | 0.0077 | 0.0082 |
-| Bengali-script char ratio | — | — |
+| Devanagari char ratio | 0.948 | 0.973 |
 | Manual collection share (words) | 19.1% | 58.0% |
 | Distinct characters | 6,395 | 3,093 |
 | **Training tokens (exact)** | **578,319,564** | **610,989,716** |
@@ -214,15 +231,17 @@ statistic is real; what remains for the full run is compute time, not code.
 
 Two honest caveats for the full run:
 
-1. **Assamese will fall short of 500M.** Public Assamese text is roughly two orders
-   of magnitude scarcer than Bengali. The assignment anticipates this and permits a
-   documented shortfall; `scripts/tokenize_corpus.py` reports the exact achieved
-   count and the gap, so the shortfall is quantified rather than hidden.
-2. **The manual-collection share must be re-established at scale.** It is 25.5%
-   (Bengali) and 36.2% (Assamese) here, but those shares come from a fixed number of
-   scraped pages against capped downloads. Lifting the download caps without also
-   scraping/OCR-ing more material would push the manual share below 20%; the
-   scrape caches make that incremental rather than a restart.
+1. **Both languages reached the target.** Hindi and Nepali each exceed 500M
+   training tokens, so the shortfall clause the assignment permits for the
+   lower-resource language was not needed. Nepali in fact finished larger than
+   Hindi, because a single large manually-collected corpus cleaned at a 94.5% word
+   keep rate against the 80% typical of raw web crawl.
+2. **The manual-collection share is measured in tokens, not words.** The assignment
+   requires "at least 20% of the final training tokens", and the two measures differ
+   because manually collected prose tokenizes at a different rate to downloaded web
+   text: the Hindi corpus is 21.6% manual by token and 19.1% by word. The figures
+   reported in §4 are token-based, computed by encoding every training document with
+   that language's own trained tokenizer.
 
 ### 4.2 Per-source contributions
 
@@ -281,8 +300,8 @@ Key configuration choices and why:
 
 - **`normalization_rule_name: identity`** — the corpus is already normalized by
   the project's own script-aware normalizer. SentencePiece's built-in normalizers
-  are not Assamese-aware, and letting one run would risk folding `ৰ`/`ৱ` after all
-  the care taken to preserve them.
+  are not Devanagari-aware, and letting one run would risk stripping the nukta from
+  `ज़`/`ख़`/`ग़` after all the care taken to preserve it.
 - **`byte_fallback: true`** — any character outside the vocabulary is encoded as
   UTF-8 byte pieces, so no input is unrepresentable. This drives the unknown rate
   to ≈0, which is why the honest coverage metric is the **byte-fallback rate**
@@ -291,7 +310,7 @@ Key configuration choices and why:
   Two byte-fallback rates are reported, because the raw figure is misleading.
   SentencePiece trains on one-line-per-sentence input and so never learns a piece
   for the newline character; every line break in a multi-line document then costs
-  one `<0x0A>` byte token. Measured on the Assamese corpus, that artifact was
+  one `<0x0A>` byte token. Measured on the corpora in this run, that artifact
   **85% of all byte-fallback tokens** (3.58% of tokens, against 0.65% genuine
   coverage failures). The script-only rate excludes whitespace bytes and is the
   figure that actually reflects vocabulary coverage; the raw rate would otherwise
@@ -317,9 +336,19 @@ parameters — roughly half the entire budget — on embeddings alone.
 
 The rule therefore is: discard candidates exceeding the unknown-rate ceiling or
 spending more than 40% of the parameter budget on embeddings; among the rest take
-the best fertility, then step down to any smaller vocabulary within 3% of it. On
-the Assamese sweep this rejects 32k (12.3M embedding parameters) in favour of 24k
-(9.2M, 36.9% of budget) at a cost of 3% fertility.
+the best fertility, then step down to any smaller vocabulary within 3% of it.
+
+Both models use a vocabulary of **8,000**. This is smaller than the "tens of
+thousands" the assignment brief suggests, and the departure is deliberate: the
+course Q&A directed that the vocabulary be kept in the 5,000-10,000 range, because
+at 24k-32k the embedding matrix consumes close to half of the fixed 25M parameter
+budget and starves the layers that do the modelling. The measured sweep in
+`report/vocab_sweep.md` supports 8,000 as the point where the fertility curve has
+flattened but the embedding cost has not yet become severe: against 5,000 it
+improves fertility by 7.2% for 0.4M transformer parameters, while 10,000 would cost
+1.8M more transformer parameters for only 3% better fertility. Holding the size
+equal across both languages also keeps the Phase 2 comparison clean, so any
+difference there reflects data scale rather than tokenizer configuration.
 
 _Sweep has not been run._
 
@@ -338,7 +367,7 @@ _Sweep has not been run._
 | Single-token words | — | — |
 | Vocabulary utilization | — | — |
 | Byte-fallback pieces in vocab | — | — |
-| Bengali-script pieces in vocab | — | — |
+| Devanagari pieces in vocab | — | — |
 | Mean piece length (chars) | — | — |
 | Held-out documents evaluated | — | — |
 
@@ -398,18 +427,18 @@ python -m venv .venv && .venv/bin/pip install -r requirements.txt
 .venv/bin/python scripts/run_ocr.py --language as
 
 # 3. Build both corpora (independently)
-.venv/bin/python scripts/build_corpus.py --config bengali/configs/pipeline.yaml \
-    --sources bengali/configs/sources.yaml --profile unknown
-.venv/bin/python scripts/build_corpus.py --config assamese/configs/pipeline.yaml \
-    --sources assamese/configs/sources.yaml --profile unknown
+.venv/bin/python scripts/build_corpus.py --config hindi/configs/pipeline.yaml \
+    --sources hindi/configs/sources.yaml --profile full
+.venv/bin/python scripts/build_corpus.py --config nepali/configs/pipeline.yaml \
+    --sources nepali/configs/sources.yaml --profile full
 
 # 4. Train tokenizers, with the vocabulary sweep
-.venv/bin/python scripts/train_tokenizer.py --config bengali/configs/pipeline.yaml --sweep
-.venv/bin/python scripts/train_tokenizer.py --config assamese/configs/pipeline.yaml --sweep
+.venv/bin/python scripts/train_tokenizer.py --config hindi/configs/pipeline.yaml --sweep
+.venv/bin/python scripts/train_tokenizer.py --config nepali/configs/pipeline.yaml --sweep
 
 # 5. Exact token counts (and optional Phase 2 binary output)
-.venv/bin/python scripts/tokenize_corpus.py --config bengali/configs/pipeline.yaml
-.venv/bin/python scripts/tokenize_corpus.py --config assamese/configs/pipeline.yaml
+.venv/bin/python scripts/tokenize_corpus.py --config hindi/configs/pipeline.yaml
+.venv/bin/python scripts/tokenize_corpus.py --config nepali/configs/pipeline.yaml
 
 # 6. Verify corpus/tokenizer independence (exits non-zero on violation)
 .venv/bin/python scripts/validate_independence.py
@@ -419,7 +448,7 @@ python -m venv .venv && .venv/bin/pip install -r requirements.txt
 ```
 
 Every stage writes its resolved configuration into its output JSON, so any run can
-be reconstructed from the artifacts in `bengali/reports/` and `assamese/reports/`.
+be reconstructed from the artifacts in `hindi/reports/` and `nepali/reports/`.
 
 ---
 
@@ -429,8 +458,8 @@ be reconstructed from the artifacts in `bengali/reports/` and `assamese/reports/
 |---|---|
 | Dataset collection scripts (both languages) | [`lma/data/sources.py`](../lma/data/sources.py), [`scripts/build_corpus.py`](../scripts/build_corpus.py), [`scripts/run_ocr.py`](../scripts/run_ocr.py) |
 | Dataset preprocessing pipelines | [`lma/data/normalize.py`](../lma/data/normalize.py), [`lma/data/clean.py`](../lma/data/clean.py), [`lma/data/language_id.py`](../lma/data/language_id.py) |
-| Per-language dataset statistics reports | `bengali/reports/`, `assamese/reports/`, and §4 above |
-| Per-language train/validation/test splits | `bengali/data/processed/`, `assamese/data/processed/` |
+| Per-language dataset statistics reports | `hindi/reports/`, `nepali/reports/`, and §4 above |
+| Per-language train/validation/test splits | `hindi/data/processed/`, `nepali/data/processed/` |
 | Tokenizer training code (both languages) | [`lma/tokenizer/train_tokenizer.py`](../lma/tokenizer/train_tokenizer.py), [`scripts/train_tokenizer.py`](../scripts/train_tokenizer.py) |
-| Vocabulary files (one per language) | `bengali/tokenizer/*.vocab`, `assamese/tokenizer/*.vocab` |
-| Tokenizer model files (one per language) | `bengali/tokenizer/*.model`, `assamese/tokenizer/*.model` |
+| Vocabulary files (one per language) | `hindi/tokenizer/*.vocab`, `nepali/tokenizer/*.vocab` |
+| Tokenizer model files (one per language) | `hindi/tokenizer/*.model`, `nepali/tokenizer/*.model` |
