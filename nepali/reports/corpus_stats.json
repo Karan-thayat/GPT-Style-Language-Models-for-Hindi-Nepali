@@ -1,0 +1,315 @@
+{
+  "averages": {
+    "characters_per_document": 3180.0865382131547,
+    "characters_per_word": 6.763547270152074,
+    "words_per_document": 470.18027836473635,
+    "words_per_sentence": 13.596100711027699
+  },
+  "by_source": {
+    "characters": {
+      "manual_bulk_ne": 154979767,
+      "manual_mixed_bulk_ne": 1273609574,
+      "nepali_corpus_local": 1033548140
+    },
+    "documents": {
+      "manual_bulk_ne": 55153,
+      "manual_mixed_bulk_ne": 621879,
+      "nepali_corpus_local": 97204
+    },
+    "words": {
+      "manual_bulk_ne": 23051236,
+      "manual_mixed_bulk_ne": 188052248,
+      "nepali_corpus_local": 152927014
+    }
+  },
+  "collection_split": {
+    "characters": {
+      "downloaded": 1033548140,
+      "manual": 1428589341
+    },
+    "documents": {
+      "downloaded": 97204,
+      "manual": 677032
+    },
+    "manual_word_fraction": 0.5799060385319694,
+    "words": {
+      "downloaded": 152927014,
+      "manual": 211103484
+    }
+  },
+  "distinct_characters": 3093,
+  "document_length_words": {
+    "max": 16508,
+    "median": 248.0,
+    "min": 15,
+    "p10": 88.0,
+    "p25": 147.0,
+    "p75": 512.0,
+    "p90": 1229.0,
+    "p99": 2634.0,
+    "sampled_documents": 200000
+  },
+  "language": "ne",
+  "lexical_diversity": {
+    "is_lower_bound": true,
+    "resumed_from_checkpoint": true,
+    "type_token_ratio": 0.008241084240145176,
+    "word_types": 3000006
+  },
+  "script_composition": {
+    "digit_char_ratio": 0.010409209406472764,
+    "latin_char_ratio": 0.004770927352044053,
+    "punctuation_char_ratio": 0.023213548066880845,
+    "script": "devanagari",
+    "script_char_ratio": 0.972642828449715
+  },
+  "top_characters": [
+    {
+      "char": "ा",
+      "codepoint": "U+093E",
+      "count": 207989907,
+      "name": "DEVANAGARI VOWEL SIGN AA"
+    },
+    {
+      "char": "्",
+      "codepoint": "U+094D",
+      "count": 161688889,
+      "name": "DEVANAGARI SIGN VIRAMA"
+    },
+    {
+      "char": "र",
+      "codepoint": "U+0930",
+      "count": 148269341,
+      "name": "DEVANAGARI LETTER RA"
+    },
+    {
+      "char": "न",
+      "codepoint": "U+0928",
+      "count": 123865812,
+      "name": "DEVANAGARI LETTER NA"
+    },
+    {
+      "char": "क",
+      "codepoint": "U+0915",
+      "count": 116731567,
+      "name": "DEVANAGARI LETTER KA"
+    },
+    {
+      "char": "ि",
+      "codepoint": "U+093F",
+      "count": 95332740,
+      "name": "DEVANAGARI VOWEL SIGN I"
+    },
+    {
+      "char": "े",
+      "codepoint": "U+0947",
+      "count": 79402433,
+      "name": "DEVANAGARI VOWEL SIGN E"
+    },
+    {
+      "char": "म",
+      "codepoint": "U+092E",
+      "count": 74192305,
+      "name": "DEVANAGARI LETTER MA"
+    },
+    {
+      "char": "स",
+      "codepoint": "U+0938",
+      "count": 73836736,
+      "name": "DEVANAGARI LETTER SA"
+    },
+    {
+      "char": "ल",
+      "codepoint": "U+0932",
+      "count": 69208582,
+      "name": "DEVANAGARI LETTER LA"
+    },
+    {
+      "char": "ो",
+      "codepoint": "U+094B",
+      "count": 69130245,
+      "name": "DEVANAGARI VOWEL SIGN O"
+    },
+    {
+      "char": "त",
+      "codepoint": "U+0924",
+      "count": 66342592,
+      "name": "DEVANAGARI LETTER TA"
+    },
+    {
+      "char": "प",
+      "codepoint": "U+092A",
+      "count": 56458864,
+      "name": "DEVANAGARI LETTER PA"
+    },
+    {
+      "char": "य",
+      "codepoint": "U+092F",
+      "count": 52674478,
+      "name": "DEVANAGARI LETTER YA"
+    },
+    {
+      "char": "ु",
+      "codepoint": "U+0941",
+      "count": 43005052,
+      "name": "DEVANAGARI VOWEL SIGN U"
+    },
+    {
+      "char": "ह",
+      "codepoint": "U+0939",
+      "count": 41005238,
+      "name": "DEVANAGARI LETTER HA"
+    },
+    {
+      "char": "ी",
+      "codepoint": "U+0940",
+      "count": 40324982,
+      "name": "DEVANAGARI VOWEL SIGN II"
+    },
+    {
+      "char": "ग",
+      "codepoint": "U+0917",
+      "count": 39261649,
+      "name": "DEVANAGARI LETTER GA"
+    },
+    {
+      "char": "व",
+      "codepoint": "U+0935",
+      "count": 38513008,
+      "name": "DEVANAGARI LETTER VA"
+    },
+    {
+      "char": "द",
+      "codepoint": "U+0926",
+      "count": 36468334,
+      "name": "DEVANAGARI LETTER DA"
+    },
+    {
+      "char": "ब",
+      "codepoint": "U+092C",
+      "count": 28835834,
+      "name": "DEVANAGARI LETTER BA"
+    },
+    {
+      "char": "भ",
+      "codepoint": "U+092D",
+      "count": 24414230,
+      "name": "DEVANAGARI LETTER BHA"
+    },
+    {
+      "char": "ज",
+      "codepoint": "U+091C",
+      "count": 24312204,
+      "name": "DEVANAGARI LETTER JA"
+    },
+    {
+      "char": "।",
+      "codepoint": "U+0964",
+      "count": 24048376,
+      "name": "DEVANAGARI DANDA"
+    },
+    {
+      "char": "छ",
+      "codepoint": "U+091B",
+      "count": 21120623,
+      "name": "DEVANAGARI LETTER CHA"
+    },
+    {
+      "char": "ए",
+      "codepoint": "U+090F",
+      "count": 20499323,
+      "name": "DEVANAGARI LETTER E"
+    },
+    {
+      "char": "ट",
+      "codepoint": "U+091F",
+      "count": 19385195,
+      "name": "DEVANAGARI LETTER TTA"
+    },
+    {
+      "char": "ै",
+      "codepoint": "U+0948",
+      "count": 18687851,
+      "name": "DEVANAGARI VOWEL SIGN AI"
+    },
+    {
+      "char": "उ",
+      "codepoint": "U+0909",
+      "count": 16437731,
+      "name": "DEVANAGARI LETTER U"
+    },
+    {
+      "char": "अ",
+      "codepoint": "U+0905",
+      "count": 15644959,
+      "name": "DEVANAGARI LETTER A"
+    },
+    {
+      "char": "थ",
+      "codepoint": "U+0925",
+      "count": 15185446,
+      "name": "DEVANAGARI LETTER THA"
+    },
+    {
+      "char": "श",
+      "codepoint": "U+0936",
+      "count": 14319797,
+      "name": "DEVANAGARI LETTER SHA"
+    },
+    {
+      "char": "ध",
+      "codepoint": "U+0927",
+      "count": 14062739,
+      "name": "DEVANAGARI LETTER DHA"
+    },
+    {
+      "char": "च",
+      "codepoint": "U+091A",
+      "count": 13995617,
+      "name": "DEVANAGARI LETTER CA"
+    },
+    {
+      "char": "ष",
+      "codepoint": "U+0937",
+      "count": 12600600,
+      "name": "DEVANAGARI LETTER SSA"
+    },
+    {
+      "char": "ख",
+      "codepoint": "U+0916",
+      "count": 12170593,
+      "name": "DEVANAGARI LETTER KHA"
+    },
+    {
+      "char": ",",
+      "codepoint": "U+002C",
+      "count": 11445769,
+      "name": "COMMA"
+    },
+    {
+      "char": "ँ",
+      "codepoint": "U+0901",
+      "count": 11062622,
+      "name": "DEVANAGARI SIGN CANDRABINDU"
+    },
+    {
+      "char": "आ",
+      "codepoint": "U+0906",
+      "count": 10615250,
+      "name": "DEVANAGARI LETTER AA"
+    },
+    {
+      "char": "ड",
+      "codepoint": "U+0921",
+      "count": 10373392,
+      "name": "DEVANAGARI LETTER DDA"
+    }
+  ],
+  "totals": {
+    "bytes_utf8_estimate": 7386412443,
+    "characters": 2462137481,
+    "documents": 774236,
+    "sentences": 26774625,
+    "words": 364030498
+  }
+}

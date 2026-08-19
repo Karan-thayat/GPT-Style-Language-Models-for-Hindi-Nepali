@@ -13,8 +13,8 @@ Stages:
 
 Usage::
 
-    python scripts/train_tokenizer.py --config bengali/configs/pipeline.yaml --sweep
-    python scripts/train_tokenizer.py --config assamese/configs/pipeline.yaml \
+    python scripts/train_tokenizer.py --config hindi/configs/pipeline.yaml --sweep
+    python scripts/train_tokenizer.py --config nepali/configs/pipeline.yaml \
         --sweep --use-sweep-best
 """
 
@@ -30,6 +30,8 @@ sys.path.insert(0, str(REPO_ROOT))
 
 from lma.stats.corpus_stats import iter_split_texts
 from lma.stats.tokenizer_stats import (
+    MAX_VOCAB_SIZE,
+    MIN_VOCAB_SIZE,
     TokenizerEvaluator,
     select_best_config,
     sweep_vocabulary_sizes,
@@ -89,6 +91,18 @@ def main() -> int:
     chosen_type = args.model_type or tokenizer_cfg["model_type"]
     sweep_results: list[dict] = []
 
+    # The 5-10K vocabulary band is a course requirement, not a preference: the
+    # ~25M Phase 2 parameter budget counts the embedding matrix, so a larger
+    # vocabulary spends the budget on embeddings instead of on the model. Warn
+    # loudly rather than failing, so a deliberate out-of-band experiment is still
+    # possible - but never silently.
+    if not MIN_VOCAB_SIZE <= chosen_vocab <= MAX_VOCAB_SIZE:
+        logger.warning(
+            "Vocabulary size %d is outside the required %d-%d band; embeddings would "
+            "consume %.1f%% of the 25M budget at d_model=384.",
+            chosen_vocab, MIN_VOCAB_SIZE, MAX_VOCAB_SIZE, 100 * chosen_vocab * 384 / 25_000_000,
+        )
+
     # --- stage 1: sweep --------------------------------------------------------
     if args.sweep:
         sizes = tokenizer_cfg["sweep_vocab_sizes"]
@@ -134,12 +148,17 @@ def main() -> int:
             "results": sweep_results,
             "selected": best,
             "selection_rule": (
-                "Best held-out fertility subject to (a) unk_rate <= 1e-4 and (b) embedding "
-                "parameters <= 40% of the 25M Phase 2 budget at d_model=384; then step down "
-                "to any smaller vocabulary within 3% fertility. Fertility alone would always "
-                "select the largest candidate, since it falls monotonically with vocab size."
+                "Best held-out fertility subject to (a) vocabulary size within the mandated "
+                "5,000-10,000 band, (b) fertility > 1.0 so the tokenizer is genuinely "
+                "sub-word, (c) unk_rate <= 1e-4, and (d) embedding parameters <= 40% of the "
+                "25M Phase 2 budget at d_model=384; then step down to any smaller vocabulary "
+                "within 3% fertility. Fertility alone would always select the largest "
+                "candidate, since it falls monotonically with vocab size."
             ),
             "selection_parameters": {
+                "min_vocab_size": MIN_VOCAB_SIZE,
+                "max_vocab_size": MAX_VOCAB_SIZE,
+                "min_fertility": 1.0,
                 "max_unk_rate": 1e-4,
                 "model_dim": 384,
                 "param_budget": 25_000_000,
@@ -158,6 +177,13 @@ def main() -> int:
         split_digits=tokenizer_cfg["split_digits"],
         normalization_rule_name=tokenizer_cfg["normalization_rule_name"],
         seed=tokenizer_cfg["seed"],
+        # Memory controls. SentencePiece loads every training sentence into RAM
+        # before it samples, so on a corpus of this size the defaults
+        # (4M sentences, 8 threads) grow past 5GB and the trainer is OOM-killed.
+        # These are read from the pipeline config so the cap can be tuned per
+        # machine without editing code.
+        input_sentence_size=tokenizer_cfg.get("input_sentence_size", 1_000_000),
+        num_threads=tokenizer_cfg.get("num_threads", 4),
     )
     logger.info("Training final tokenizer: %s, vocab=%d", final_config.model_type, final_config.vocab_size)
     started = time.monotonic()
@@ -191,6 +217,13 @@ def main() -> int:
     logger.info("--- Held-out tokenizer metrics (%s) ---", language)
     logger.info("Vocabulary size:       %d", metrics.vocab_size)
     logger.info("Fertility:             %.4f tokens/word", metrics.fertility)
+    if metrics.fertility <= 1.0:
+        # Fertility <= 1 means words are not being split into subwords at all,
+        # which the assignment rules out: sub-word tokenization is the point.
+        logger.warning(
+            "Fertility %.4f is not > 1.0 - this tokenizer is not segmenting into subwords.",
+            metrics.fertility,
+        )
     logger.info("Unknown rate:          %.3e", metrics.unk_rate)
     logger.info("Byte-fallback rate:    %.4f%%", 100 * metrics.byte_fallback_rate)
     logger.info("Chars per token:       %.3f", metrics.chars_per_token)

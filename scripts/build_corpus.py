@@ -196,7 +196,10 @@ def main() -> int:
     # Per-collection character counts, so the budget and the reported ratio both
     # reflect what each side actually contributed.
     chars_by_collection = dict(state.chars_by_collection)
-    budget_reached = False
+    # Set once the downloaded cap is hit. Downloaded documents are skipped from then
+    # on while manual sources keep streaming, so this is a per-collection latch
+    # rather than a signal to stop the run.
+    downloaded_full = False
     checkpoint_every = args.checkpoint_every
 
     def save_checkpoint(writer_summary: dict) -> None:
@@ -230,6 +233,18 @@ def main() -> int:
                     else state.source_positions.__setitem__(source_id, position)
                 ),
             ):
+                # The downloaded budget is a cap on one collection, not a stop
+                # condition for the whole ingest. Skipping here rather than breaking
+                # lets the manual sources - which are listed after the large
+                # downloaded corpus and are the scarce side of the ratio - still be
+                # read once downloaded text is full.
+                if (
+                    downloaded_budget is not None
+                    and document.collection == "downloaded"
+                    and chars_by_collection.get("downloaded", 0) >= downloaded_budget
+                ):
+                    continue
+
                 normalized = normalizer.normalize(document.text)
                 kept = cleaner.process(normalized)
                 if kept is None:
@@ -248,14 +263,18 @@ def main() -> int:
                     # Only downloaded text is capped. Manual text keeps flowing, so
                     # a source that yields more of it than expected improves the
                     # ratio instead of being cut off.
-                    if downloaded_budget is not None and downloaded_chars >= downloaded_budget:
+                    if (
+                        downloaded_budget is not None
+                        and downloaded_chars >= downloaded_budget
+                        and not downloaded_full
+                    ):
+                        downloaded_full = True
                         logger.info(
-                            "Downloaded budget reached (%s downloaded chars, %s manual); stopping ingest",
+                            "Downloaded budget reached (%s downloaded chars, %s manual); "
+                            "skipping further downloaded text, continuing with manual sources",
                             f"{downloaded_chars:,}",
                             f"{chars_by_collection.get('manual', 0):,}",
                         )
-                        budget_reached = True
-                        break
 
                 if checkpoint_every and cleaner.stats.kept - last_checkpoint_at >= checkpoint_every:
                     writer.flush()
@@ -303,7 +322,7 @@ def main() -> int:
         "model": config["model"],
         "profile": profile,
         "elapsed_seconds": elapsed,
-        "budget_reached": budget_reached,
+        "budget_reached": downloaded_full,
         "segments": state.segments,
         "resumed": resuming,
         "config": {"cleaning": config["cleaning"], "splits": config["splits"]},

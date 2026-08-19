@@ -22,7 +22,7 @@ cleaning:
   max_char_run: 20
   check_language_identity: true
   dedup_exact: true
-  dedup_near: true
+  dedup_near: false
   near_dup_threshold: 0.7
   minhash_permutations: 96
   shingle_size: 5
@@ -49,6 +49,8 @@ tokenizer:
   sweep_model_types:
   - unigram
   - bpe
+  input_sentence_size: 400000
+  num_threads: 4
 profiles:
   sampled:
     per_source_doc_limit: 4000
@@ -61,6 +63,6 @@ profiles:
       test: 0.06
   full:
     per_source_doc_limit: null
-    tokenizer_max_train_lines: 8000000
+    tokenizer_max_train_lines: 200000
     sweep_max_train_lines: 1000000
     target_train_tokens: 500000000

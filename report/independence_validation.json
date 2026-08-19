@@ -1,38 +1,38 @@
 {
   "checks": {
-    "as_purity": 1.0,
-    "as_train_test_overlap": 0,
-    "as_train_validation_overlap": 0,
-    "as_validation_test_overlap": 0,
-    "bn_purity": 1.0,
-    "bn_train_test_overlap": 0,
-    "bn_train_validation_overlap": 0,
-    "bn_validation_test_overlap": 0,
+    "hi_purity": 1.0,
+    "hi_train_test_overlap": 0,
+    "hi_train_validation_overlap": 0,
+    "hi_validation_test_overlap": 0,
+    "ne_purity": 1.0,
+    "ne_train_test_overlap": 0,
+    "ne_train_validation_overlap": 0,
+    "ne_validation_test_overlap": 0,
     "shared_documents": 0,
-    "vocab_jaccard": 0.13976349907394214
+    "vocab_jaccard": 0.2003000750187547
   },
   "corpus": {
-    "as": {
-      "test": 215,
-      "train": 2978,
-      "validation": 215
+    "hi": {
+      "test": 9411,
+      "train": 921412,
+      "validation": 9312
     },
-    "bn": {
-      "test": 208,
-      "train": 2681,
-      "validation": 204
+    "ne": {
+      "test": 15557,
+      "train": 743191,
+      "validation": 15488
     }
   },
   "failures": [],
   "passed": true,
   "tokenizers": {
-    "as": {
-      "model_file": "assamese/tokenizer/as_bpe_24000.model",
-      "model_sha256": "5b6916b405783e07423b1655e89ed085e2f7e85548a4c7eebcf1f82d22c50de6"
+    "hi": {
+      "model_file": "hindi/tokenizer/hi_unigram_8000.model",
+      "model_sha256": "3d712c2e84f1d181a62d051eb9f2cd5dc8d6943935ba8cbed6daea4f696e102b"
     },
-    "bn": {
-      "model_file": "bengali/tokenizer/bn_unigram_16000.model",
-      "model_sha256": "58e2d1493ca3d228532dd497bf91245fe3482c9bcdfa46f0f1f8d0d888620c84"
+    "ne": {
+      "model_file": "nepali/tokenizer/ne_unigram_8000.model",
+      "model_sha256": "04e64976924c0194e7559e8c8e10004b3ea5570f6da5a874f7c18657874b8a0c"
     }
   }
 }

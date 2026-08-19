@@ -6,7 +6,7 @@
 |---|---|
 | **Model H** (higher-resource) | Bengali (`bn`) |
 | **Model L** (lower-resource) | Assamese (`as`) |
-| Run profile | `sampled` |
+| Run profile | `unknown` |
 | Independence | Separate corpora, separate tokenizers, separate vocabularies |
 
 ---
@@ -167,37 +167,37 @@ Overall: **PASSED**
 | Verified property | Result |
 |---|---|
 | Documents shared between the two corpora | 0 |
-| Bengali: train ∩ validation documents | 0 |
-| Bengali: train ∩ test documents | 0 |
-| Assamese: train ∩ validation documents | 0 |
-| Assamese: train ∩ test documents | 0 |
-| Vocabulary piece overlap (Jaccard) | 0.140 (overlap expected — shared script; ≈1.0 would indicate reuse) |
-| Bengali corpus identified as bn | 100.0% |
-| Assamese corpus identified as as | 100.0% |
+| Hindi: train ∩ validation documents | 0 |
+| Hindi: train ∩ test documents | 0 |
+| Nepali: train ∩ validation documents | 0 |
+| Nepali: train ∩ test documents | 0 |
+| Vocabulary piece overlap (Jaccard) | 0.200 (near zero expected — the scripts differ; a high value would indicate reuse) |
+| Hindi corpus identified as hi | 100.0% |
+| Nepali corpus identified as ne | 100.0% |
 
 ---
 
 ## 4. Dataset Statistics
 
-| Statistic | Bengali (Model H) | Assamese (Model L) |
+| Statistic | Hindi (Model H) | Nepali (Model L) |
 |---|---:|---:|
-| Documents kept | 3,093 | 3,408 |
-| Documents seen (pre-filter) | 3,827 | 4,044 |
-| Keep rate | 80.8% | 84.3% |
-| Words | 2,522,840 | 2,494,022 |
-| Characters | 17,287,864 | 16,129,501 |
-| Sentences | 294,336 | 337,965 |
-| Mean words/document | 815.7 | 731.8 |
-| Mean chars/word | 6.85 | 6.47 |
-| Median document length (words) | 304 | 246 |
-| Word types (distinct) | 313,766 | 353,382 |
-| Type/token ratio | 0.1244 | 0.1417 |
-| Bengali-script char ratio | 0.916 | 0.911 |
-| Manual collection share (words) | 33.0% | 36.2% |
-| Distinct characters | 1,080 | 812 |
-| **Training tokens (exact)** | **3,961,754** | **3,718,415** |
-| Total tokens (all splits) | 4,580,951 | 4,418,841 |
-| Achieved vs 500M target | 0.79% | 0.74% |
+| Documents kept | 940,135 | 774,236 |
+| Documents seen (pre-filter) | 985,160 | 879,912 |
+| Keep rate | 95.4% | 88.0% |
+| Words | 392,113,765 | 364,030,498 |
+| Characters | 2,037,674,441 | 2,462,137,481 |
+| Sentences | 19,035,562 | 26,774,625 |
+| Mean words/document | 417.1 | 470.2 |
+| Mean chars/word | 5.20 | 6.76 |
+| Median document length (words) | 290 | 248 |
+| Word types (distinct) | 3,000,001 | 3,000,006 |
+| Type/token ratio | 0.0077 | 0.0082 |
+| Bengali-script char ratio | — | — |
+| Manual collection share (words) | 19.1% | 58.0% |
+| Distinct characters | 6,395 | 3,093 |
+| **Training tokens (exact)** | **576,710,791** | **610,989,716** |
+| Total tokens (all splits) | — | — |
+| Achieved vs 500M target | — | — |
 
 ### 4.1 On the token counts in this run
 
@@ -226,42 +226,47 @@ Two honest caveats for the full run:
 
 ### 4.2 Per-source contributions
 
-**Bengali (Model H)**
+**Hindi (Model H)**
 
 | Source | Collection | Documents | Words | Share of words |
 |---|---|---:|---:|---:|
-| `manual_scrape_wikisource_bn` | manual | 937 | 833,381 | 33.0% |
-| `sangraha_bn` | downloaded | 1,184 | 486,592 | 19.3% |
-| `wikipedia_bn` | downloaded | 972 | 1,202,867 | 47.7% |
+| `indiccorp_hi` | downloaded | 751,876 | 317,299,220 | 80.9% |
+| `manual_bulk_hi` | manual | 31,252 | 17,773,162 | 4.5% |
+| `manual_news_crawled_hi` | manual | 2,002 | 1,179,016 | 0.3% |
+| `manual_ocr_hi` | manual | 12,518 | 3,236,184 | 0.8% |
+| `manual_scraped_news_hi` | manual | 20,258 | 8,920,220 | 2.3% |
+| `wikipedia_dump_hi` | manual | 122,229 | 43,705,963 | 11.1% |
 
-**Assamese (Model L)**
+**Nepali (Model L)**
 
 | Source | Collection | Documents | Words | Share of words |
 |---|---|---:|---:|---:|
-| `manual_scrape_wikisource_as` | manual | 579 | 902,364 | 36.2% |
-| `sangraha_as` | downloaded | 1,425 | 663,589 | 26.6% |
-| `wikipedia_as` | downloaded | 1,404 | 928,069 | 37.2% |
+| `manual_bulk_ne` | manual | 55,153 | 23,051,236 | 6.3% |
+| `manual_mixed_bulk_ne` | manual | 621,879 | 188,052,248 | 51.7% |
+| `nepali_corpus_local` | downloaded | 97,204 | 152,927,014 | 42.0% |
 
 ---
 
 ## 5. Cleaning Effect
 
-| Rejection reason | Bengali (Model H) | Assamese (Model L) |
+| Rejection reason | Hindi (Model H) | Nepali (Model L) |
 |---|---:|---:|
-| `exact_duplicate` | 8 | 13 |
-| `high_digit_ratio` | 70 | 149 |
-| `high_symbol_ratio` | 71 | 10 |
-| `long_char_run` | 2 | 10 |
-| `low_script_ratio` | 201 | 211 |
-| `near_duplicate` | 68 | 101 |
-| `repeated_lines` | 273 | 83 |
-| `repeated_ngram` | 3 | 2 |
-| `too_short_chars` | 28 | 28 |
-| `too_short_words` | 10 | 26 |
-| `too_long` | 0 | 2 |
-| `wrong_language` | 0 | 1 |
-| **Total kept** | 3,093 | 3,408 |
-| **Total seen** | 3,827 | 4,044 |
+| `exact_duplicate` | 14,804 | 33,730 |
+| `high_digit_ratio` | 284 | 110 |
+| `high_gibberish_ratio` | 8 | 2 |
+| `high_symbol_ratio` | 3,597 | 348 |
+| `long_char_run` | 875 | 407 |
+| `low_script_ratio` | 17,258 | 31,028 |
+| `mojibake` | 149 | 196 |
+| `repeated_lines` | 449 | 151 |
+| `repeated_ngram` | 1,940 | 1,504 |
+| `too_long` | 43 | 0 |
+| `too_short_chars` | 4,015 | 12,114 |
+| `too_short_words` | 861 | 2,867 |
+| `wrong_language` | 742 | 9,723 |
+| `near_duplicate` | 0 | 13,495 |
+| **Total kept** | 940,135 | 774,236 |
+| **Total seen** | 985,160 | 879,912 |
 
 ---
 
@@ -315,121 +320,34 @@ the best fertility, then step down to any smaller vocabulary within 3% of it. On
 the Assamese sweep this rejects 32k (12.3M embedding parameters) in favour of 24k
 (9.2M, 36.9% of budget) at a cost of 3% fertility.
 
-**Bengali (Model H)**
-
-| Algorithm | Vocab size | Fertility | Unk rate | Byte-fallback | Chars/token |
-|---|---:|---:|---:|---:|---:|
-| unigram | 8,000 | 2.102 | 0.0e+00 | 4.3282% | 3.30 |
-| unigram | 16,000 | 1.893 | 0.0e+00 | 4.8064% | 3.66 |
-| unigram | 32,000 | 1.755 | 0.0e+00 | 5.1854% | 3.95 |
-| unigram | 48,000 | 1.694 | 0.0e+00 | 5.3709% | 4.09 |
-| unigram | 64,000 | 1.658 | 0.0e+00 | 5.4877% | 4.18 |
-| bpe | 8,000 | 2.123 | 0.0e+00 | 4.2849% | 3.27 |
-| bpe | 16,000 | 1.906 | 0.0e+00 | 4.7741% | 3.64 |
-| bpe | 32,000 | 1.746 | 0.0e+00 | 5.2097% | 3.97 |
-| bpe | 48,000 | 1.682 | 0.0e+00 | 5.4095% | 4.12 |
-| bpe | 64,000 | 1.644 | 0.0e+00 | 5.5342% | 4.22 |
-
-Selected: **unigram, vocab 16,000** (fertility 1.893).
-
-**Assamese (Model L)**
-
-| Algorithm | Vocab size | Fertility | Unk rate | Byte-fallback | Chars/token |
-|---|---:|---:|---:|---:|---:|
-| unigram | 4,000 | 2.383 | 0.0e+00 | 4.1748% | 2.64 |
-| unigram | 8,000 | 2.112 | 0.0e+00 | 4.7093% | 2.98 |
-| unigram | 16,000 | 1.918 | 0.0e+00 | 5.1864% | 3.29 |
-| unigram | 24,000 | 1.827 | 0.0e+00 | 5.4452% | 3.45 |
-| unigram | 32,000 | 1.775 | 0.0e+00 | 5.6037% | 3.55 |
-| bpe | 4,000 | 2.353 | 0.0e+00 | 4.2280% | 2.68 |
-| bpe | 8,000 | 2.083 | 0.0e+00 | 4.7751% | 3.02 |
-| bpe | 16,000 | 1.881 | 0.0e+00 | 5.2895% | 3.35 |
-| bpe | 24,000 | 1.792 | 0.0e+00 | 5.5521% | 3.52 |
-| bpe | 32,000 | 1.737 | 0.0e+00 | 5.7272% | 3.63 |
-
-Selected: **bpe, vocab 24,000** (fertility 1.792).
+_Sweep has not been run._
 
 ### 6.2 Held-out tokenizer metrics
 
-| Tokenizer metric (held-out) | Bengali (Model H) | Assamese (Model L) |
+| Tokenizer metric (held-out) | Hindi (Model H) | Nepali (Model L) |
 |---|---:|---:|
-| Algorithm | unigram | bpe |
-| Vocabulary size | 16,000 | 24,000 |
-| **Fertility (tokens/word)** | **1.893** | **1.792** |
-| Unknown-token rate | 0.00e+00 | 0.00e+00 |
-| Byte-fallback rate (all) | 4.8064% | 5.5605% |
-| **Byte-fallback rate (script only)** | **0.6032%** | **0.3677%** |
-| Characters per token | 3.663 | 3.517 |
-| Bytes per token | 9.381 | 8.706 |
-| Single-token words | 61.7% | 61.7% |
-| Vocabulary utilization | 80.4% | 80.9% |
-| Byte-fallback pieces in vocab | 256 | 256 |
-| Bengali-script pieces in vocab | 14,682 | 21,874 |
-| Mean piece length (chars) | 5.80 | 4.88 |
-| Held-out documents evaluated | 204 | 215 |
+| Algorithm | — | — |
+| Vocabulary size | — | — |
+| **Fertility (tokens/word)** | — | — |
+| Unknown-token rate | — | — |
+| Byte-fallback rate (all) | — | — |
+| **Byte-fallback rate (script only)** | — | — |
+| Characters per token | — | — |
+| Bytes per token | — | — |
+| Single-token words | — | — |
+| Vocabulary utilization | — | — |
+| Byte-fallback pieces in vocab | — | — |
+| Bengali-script pieces in vocab | — | — |
+| Mean piece length (chars) | — | — |
+| Held-out documents evaluated | — | — |
 
 ### 6.3 Most frequent tokens (held-out text)
 
-| Rank | Bengali (Model H) | Assamese (Model L) |
-|---:|---|---|
-| 1 | `<0x0A>` (4.20%) | `<0x0A>` (5.19%) |
-| 2 | `▁` (3.12%) | `।` (3.65%) |
-| 3 | `।` (3.12%) | `,` (3.08%) |
-| 4 | `,` (2.49%) | `-` (1.56%) |
-| 5 | `1` (1.38%) | `▁আৰু` (0.87%) |
-| 6 | `ের` (1.33%) | `'` (0.78%) |
-| 7 | `র` (0.98%) | `.` (0.68%) |
-| 8 | `-` (0.97%) | `▁` (0.64%) |
-| 9 | `9` (0.80%) | `1` (0.57%) |
-| 10 | `0` (0.79%) | `0` (0.44%) |
-| 11 | `ে` (0.77%) | `▁(` (0.43%) |
-| 12 | `2` (0.71%) | `▁এই` (0.41%) |
-| 13 | `▁এবং` (0.67%) | `▁হয়` (0.41%) |
-| 14 | `.` (0.60%) | `▁to` (0.39%) |
-| 15 | `:` (0.58%) | `▁কৰা` (0.39%) |
-| 16 | `▁(` (0.55%) | `,-` (0.36%) |
-| 17 | `▁ও` (0.54%) | `9` (0.35%) |
-| 18 | `ই` (0.47%) | `2` (0.35%) |
-| 19 | `)` (0.45%) | `▁এতেকে` (0.32%) |
-| 20 | `5` (0.44%) | `)` (0.30%) |
+_Tokenizer has not been trained._
 
 ### 6.4 Tokenization examples
 
-**Bengali (Model H)**
-
-- Text: `ক্রিকেট হচ্ছে ব্যাট ও বলের একটি দলীয় খেলা যাতে এগারোজন খেলোয়াড়বিশিষ্ট দুইটি দল অংশ নেয়। এই খেলাটির উদ্ভব হয় ইংল্যান্ডে। পরবর্তীতে ব্রিটিশ উপনিবেশ`
-  - Pieces (42 tokens, 33 words, fertility 1.27): `▁ক্রিকেট ▁হচ্ছে ▁ব্যাট ▁ও ▁বলে র ▁একটি ▁দলীয় ▁খেলা ▁যাতে ▁এগারো জন ▁খেলোয়াড় বিশিষ্ট ▁দুইটি ▁দল ▁অংশ ▁নেয় । ▁এই ▁খেলা টির ▁উদ্ভব ▁হয় ▁ইংল্যান্ডে । ▁পরবর্তীতে ▁ব্রিটিশ ▁উপনিবেশ গুলো সহ ▁অন্যান্য ▁দেশগুলো তে ▁এই ▁খেলা ▁ব্যাপকভাবে ▁প্রভাব ▁বিস্তার ▁লাভ`
-  - Round-trip decode matches: True
-- Text: `আলবেনিয়া (আলবেনীয় ভাষায়: Shqipëri শ্চিপ্যরি) দক্ষিণ-পূর্ব ইউরোপের বলকান উপদ্বীপের উত্তর-পশ্চিম প্রান্তে অবস্থিত একটি রাষ্ট্র। দেশটি পশ্চিম দিক থেকে`
-  - Pieces (62 tokens, 27 words, fertility 2.30): `▁আল বেন িয়া ▁( আল বেন ীয় ▁ভাষায় : ▁Sh q i p <0xC3> <0xAB> ri ▁ শ্চ ি প ্য রি ) ▁দক্ষিণ - পূর্ব ▁ইউরোপের ▁বল কান ▁উপদ্বীপ ের ▁উত্তর - পশ্চিম ▁প্রান্তে ▁অবস্থিত ▁একটি ▁রাষ্ট্র । ▁দেশটি`
-  - Round-trip decode matches: True
-- Text: `অস্ট্রিয়া ( ও্যস্টারাইশ্‌, ক্রোয়েশীয় ভাষায়: Austrija আউস্ত্রিয়া, হাঙ্গেরীয় ভাষায়: Ausztria অউস্ত্রিয়, স্লোভেনীয় ভাষায: Avstrija আভ্‌স্ত্রিয়া`
-  - Pieces (71 tokens, 25 words, fertility 2.84): `▁অ স্ট ্ রিয়া ▁( ▁ও ্য স্টার াই শ ্‌ , ▁ ক্রো য়ে শ ীয় ▁ভাষায় : ▁A us tri ja ▁আ উ স্ত্র িয়া , ▁ হাঙ্গেরীয় ▁ভাষায় : ▁A us z tri a ▁অ উ স্ত্র`
-  - Round-trip decode matches: True
-- Text: `বেলজিয়াম ( বেল্‌য়া, ব্যল্‌ঝ়িক্‌, বেল্‌গিয়েন্‌) উত্তর-পশ্চিম ইউরোপের একটি দেশ। এটি ইউরোপের ক্ষুদ্রতম ও সবচেয়ে ঘনবসতিপূর্ণ দেশগুলির একটি। এটি একটি `
-  - Pieces (51 tokens, 26 words, fertility 1.96): `▁বেলজিয়াম ▁( ▁বেল ্‌ য়া , ▁ ব্য ল ্‌ ঝ ় িক ্‌ , ▁বেল ্‌ গ িয়ে ন্‌ ) ▁উত্তর - পশ্চিম ▁ইউরোপের ▁একটি ▁দেশ । ▁এটি ▁ইউরোপের ▁ক্ষুদ্রতম ▁ও ▁সবচেয়ে ▁ঘন বস তি পূর্ণ ▁দেশগুলির ▁একটি ।`
-  - Round-trip decode matches: True
-- Text: `পিংক ফ্লয়েড 1965 সালে গঠিত লন্ডন ভিত্তিক ব্রিটিশ রক ব্যান্ড। 1960-এর দশকের শেষের দিকে লন্ডনের আন্ডারগ্রাউন্ড ব্যান্ড হিসেবে তাদের দার্শনিক গানের কথা,`
-  - Pieces (58 tokens, 31 words, fertility 1.87): `▁ পিং ক ▁ফ্ল য়েড ▁ 1 9 6 5 ▁সালে ▁গঠিত ▁লন্ডন ▁ ভিত্তিক ▁ব্রিটিশ ▁রক ▁ব্যান্ড । ▁ 1 9 6 0 - এর ▁দশকের ▁শেষের ▁দিকে ▁লন্ডনের ▁আ ন্ডার গ্রা উ ন্ড ▁ব্যান্ড ▁হিসেবে ▁তাদের ▁দার্শনিক ▁গানের`
-  - Round-trip decode matches: True
-
-**Assamese (Model L)**
-
-- Text: `অসম () ভাৰতৰ উত্তৰ-পূবত অৱস্থিত সাংস্কৃতিক আৰু ভৌগোলিকভাৱে এখন পৃথক ৰাজ্য। ইংৰাজে অসম দখল কৰাৰ আগতে অসম এখন স্বতন্ত্ৰ ৰাষ্ট্ৰ আছিল। 1826 চনৰ ইয়াণ্ডাব`
-  - Pieces (46 tokens, 35 words, fertility 1.31): `▁অসম ▁() ▁ভাৰতৰ ▁উত্তৰ - পূ বত ▁অৱস্থিত ▁সাংস্কৃতিক ▁আৰু ▁ভৌগোল িকভাৱে ▁এখন ▁পৃথক ▁ৰাজ্য । ▁ইংৰাজে ▁অসম ▁দখল ▁কৰাৰ ▁আগতে ▁অসম ▁এখন ▁স্বতন্ত্ৰ ▁ৰাষ্ট্ৰ ▁আছিল । ▁ 1 8 2 6 ▁চনৰ ▁ইয়াণ্ডাবু ▁সন্ধি ▁অনুসৰি ▁অসম ▁ইংৰাজৰ ▁হাতলৈ ▁যায়`
-  - Round-trip decode matches: True
-- Text: `কাটাৰ পশ্চিম এছিয়াৰ এখন এখন সৰু দেশ। ইয়াৰ ৰাজধানী হ'ল ড'হা। কাটাৰৰ মাটিকালি হ'ল 11,437 বৰ্গ কিলোমিটাৰ। ভাৰতৰ ৰাজধানী দিল্লীৰ পৰা কাটাৰৰ ৰাজধানী ড'হা`
-  - Pieces (67 tokens, 35 words, fertility 1.91): `▁কাটাৰ ▁পশ্চিম ▁এছিয়াৰ ▁এখন ▁এখন ▁সৰু ▁দেশ । ▁ইয়াৰ ▁ৰাজধানী ▁হ ' ল ▁ড ' হা । ▁কাট াৰৰ ▁মাটিকালি ▁হ ' ল ▁ 1 1 , 4 3 7 ▁বৰ্গ ▁কিলোমিটাৰ । ▁ভাৰতৰ ▁ৰাজধানী ▁দিল্লীৰ ▁পৰা ▁কাট াৰৰ ▁ৰাজধানী`
-  - Round-trip decode matches: True
-- Text: `অসমীয়া ভাষা () হৈছে সকলোতকৈ পূৰ্বীয় ভাৰতীয়-আৰ্য ভাষা। ইয়াক ঘাইকৈ উত্তৰ-পূব ভাৰতৰ অসমত ব্যৱহাৰ কৰা হয়। ই অসমৰ ৰাজ্যিক ভাষা। অৰুণাচল প্ৰদেশ, পশ্চিম`
-  - Pieces (47 tokens, 34 words, fertility 1.38): `▁অসমীয়া ▁ভাষা ▁() ▁হৈছে ▁সকলোতকৈ ▁পূৰ্ব ীয় ▁ভাৰতীয় - আৰ ্য ▁ভাষা । ▁ইয়াক ▁ঘাইকৈ ▁উত্তৰ - পূব ▁ভাৰতৰ ▁অসমত ▁ব্যৱহাৰ ▁কৰা ▁হয় । ▁ই ▁অসমৰ ▁ৰাজ্যিক ▁ভাষা । ▁অৰুণাচল ▁প্ৰদেশ , ▁পশ্চিম ▁বংগৰ ▁কোনো ▁কোনো ▁ঠাইত ▁আৰু ▁উত্তৰ -`
-  - Round-trip decode matches: True
-- Text: `অসমৰ প্ৰসিদ্ধ ব্যক্তিসকলৰ তালিকা: সংগীত আৰু চলচ্চিত্ৰ অসমৰ কণ্ঠশিল্পীসকলৰ তালিকা অসমীয়া অভিনেতা অভিনেত্ৰীসকলৰ তালিকা চলচ্চিত্ৰ নিৰ্মাতা আৰু নিৰ্দেশক `
-  - Pieces (34 tokens, 29 words, fertility 1.17): `▁অসমৰ ▁প্ৰসিদ্ধ ▁ব্যক্তিসকলৰ ▁তালিকা : ▁সংগীত ▁আৰু ▁চলচ্চিত্ৰ ▁অসমৰ ▁কণ্ঠ শিল্প ীসকলৰ ▁তালিকা ▁অসমীয়া ▁অভিনেতা ▁অভিনেত্ৰ ীসকলৰ ▁তালিকা ▁চলচ্চিত্ৰ ▁নিৰ্মাতা ▁আৰু ▁নিৰ্দেশক ▁জ্যোতিপ্ৰসাদ ▁আগৰৱালা ▁ভূপেন ▁হাজৰিকা ▁নিপ ▁বৰুৱা ▁ব্ৰজেন ▁বৰুৱা ▁গৌতম ▁বৰা ▁পদ ু`
-  - Round-trip decode matches: True
-- Text: `হাইলাকান্দি অসমৰ বৰাক উপত্যকাৰ এখন জিলা। ই অসমৰ একেবাৰে দক্ষিণ চুকত অৱস্থিত। ইয়াৰ সদৰ ঠাই হাইলাকান্দি নগৰ ৰাজ্যৰ ৰাজধানী গুৱাহাটীৰ পৰা 350 কি.মি. নিল`
-  - Pieces (53 tokens, 33 words, fertility 1.61): `▁হ াইল াক ান্দি ▁অসমৰ ▁বৰাক ▁উপত্যকাৰ ▁এখন ▁জিলা । ▁ই ▁অসমৰ ▁একেবাৰে ▁দক্ষিণ ▁চুকত ▁অৱস্থিত । ▁ইয়াৰ ▁সদৰ ▁ঠাই ▁হ াইল াক ান্দি ▁নগৰ ▁ৰাজ্যৰ ▁ৰাজধানী ▁গুৱাহাটীৰ ▁পৰা ▁ 3 5 0 ▁কি . মি . ▁নিলগত । ▁জিলাখনৰ`
-  - Round-trip decode matches: True
+_Tokenizer has not been trained._
 
 ---
 
@@ -447,13 +365,13 @@ Selected: **bpe, vocab 24,000** (fertility 1.792).
 
 *Figure 3: Manual versus downloaded share of training words, against the 20% manual-collection requirement.*
 
-![Per-source composition of the bn corpus by word count.](figures/source_composition_bn.png)
+![Per-source composition of the hi corpus by word count.](figures/source_composition_hi.png)
 
-*Figure 4: Per-source composition of the bn corpus by word count.*
+*Figure 4: Per-source composition of the hi corpus by word count.*
 
-![Per-source composition of the as corpus by word count.](figures/source_composition_as.png)
+![Per-source composition of the ne corpus by word count.](figures/source_composition_ne.png)
 
-*Figure 5: Per-source composition of the as corpus by word count.*
+*Figure 5: Per-source composition of the ne corpus by word count.*
 
 ![Documents rejected by each cleaning filter, attributed to the first filter that fired.](figures/cleaning_funnel.png)
 
@@ -462,18 +380,6 @@ Selected: **bpe, vocab 24,000** (fertility 1.792).
 ![Train/validation/test split sizes in characters (log scale).](figures/split_sizes.png)
 
 *Figure 7: Train/validation/test split sizes in characters (log scale).*
-
-![Vocabulary selection: held-out fertility and byte-fallback rate against vocabulary size, for both algorithms.](figures/vocab_sweep.png)
-
-*Figure 8: Vocabulary selection: held-out fertility and byte-fallback rate against vocabulary size, for both algorithms.*
-
-![Token-frequency distribution and cumulative coverage on held-out text.](figures/token_frequency.png)
-
-*Figure 9: Token-frequency distribution and cumulative coverage on held-out text.*
-
-![Vocabulary piece-length distribution for the two tokenizers.](figures/piece_length_histogram.png)
-
-*Figure 10: Vocabulary piece-length distribution for the two tokenizers.*
 
 ---
 
@@ -492,9 +398,9 @@ python -m venv .venv && .venv/bin/pip install -r requirements.txt
 
 # 3. Build both corpora (independently)
 .venv/bin/python scripts/build_corpus.py --config bengali/configs/pipeline.yaml \
-    --sources bengali/configs/sources.yaml --profile sampled
+    --sources bengali/configs/sources.yaml --profile unknown
 .venv/bin/python scripts/build_corpus.py --config assamese/configs/pipeline.yaml \
-    --sources assamese/configs/sources.yaml --profile sampled
+    --sources assamese/configs/sources.yaml --profile unknown
 
 # 4. Train tokenizers, with the vocabulary sweep
 .venv/bin/python scripts/train_tokenizer.py --config bengali/configs/pipeline.yaml --sweep

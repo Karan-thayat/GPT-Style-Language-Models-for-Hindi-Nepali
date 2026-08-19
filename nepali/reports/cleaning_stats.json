@@ -1,0 +1,24 @@
+{
+  "documents_gibberish_stripped": 620,
+  "gibberish_words_removed": 1377,
+  "keep_rate": 0.879901626526289,
+  "kept": 774236,
+  "kept_chars": 2462137481,
+  "kept_words": 364030498,
+  "rejected": {
+    "exact_duplicate": 33730,
+    "high_digit_ratio": 110,
+    "high_gibberish_ratio": 2,
+    "high_symbol_ratio": 348,
+    "long_char_run": 407,
+    "low_script_ratio": 31028,
+    "mojibake": 196,
+    "near_duplicate": 13495,
+    "repeated_lines": 151,
+    "repeated_ngram": 1504,
+    "too_short_chars": 12114,
+    "too_short_words": 2867,
+    "wrong_language": 9723
+  },
+  "seen": 879912
+}

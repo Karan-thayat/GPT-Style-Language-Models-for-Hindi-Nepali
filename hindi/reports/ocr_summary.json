@@ -1,0 +1,47 @@
+{
+  "characters": 26221498,
+  "documents": 15449,
+  "files": [
+    {
+      "characters": 5016705,
+      "documents": 3234,
+      "path": "/home/karan/Desktop/project lma/hindi/data/raw/pdf/Mahabharata_Volume_4.pdf"
+    },
+    {
+      "characters": 3921978,
+      "documents": 2449,
+      "path": "/home/karan/Desktop/project lma/hindi/data/raw/pdf/Mahabharata_Volume_5.pdf"
+    },
+    {
+      "characters": 3998412,
+      "documents": 2565,
+      "path": "/home/karan/Desktop/project lma/hindi/data/raw/pdf/Mahabharata_Volume_6.pdf"
+    },
+    {
+      "characters": 3221253,
+      "documents": 1853,
+      "path": "/home/karan/Desktop/project lma/hindi/data/raw/pdf/Rigveda Hindi - Dr Ganga Sahay Sharma.pdf"
+    },
+    {
+      "characters": 1549508,
+      "documents": 552,
+      "path": "/home/karan/Desktop/project lma/hindi/data/raw/pdf/Vishnu Puran - Gita Press.pdf"
+    },
+    {
+      "characters": 5891194,
+      "documents": 3185,
+      "path": "/home/karan/Desktop/project lma/hindi/data/raw/pdf/vardha hindi dictionary.pdf"
+    },
+    {
+      "characters": 1797638,
+      "documents": 1064,
+      "path": "/home/karan/Desktop/project lma/hindi/data/raw/pdf/अथर्ववेद.pdf"
+    },
+    {
+      "characters": 824810,
+      "documents": 547,
+      "path": "/home/karan/Desktop/project lma/hindi/data/raw/pdf/ईशादि_नो_उपनिषद-1.pdf"
+    }
+  ],
+  "language": "hi"
+}

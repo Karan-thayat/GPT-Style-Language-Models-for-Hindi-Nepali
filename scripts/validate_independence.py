@@ -37,7 +37,9 @@ from lma.data.language_id import IndicLanguageIdentifier
 from lma.data.splits import SPLIT_NAMES, iter_jsonl
 from lma.utils.logging_utils import setup_logging, write_json
 
-#: Language code -> (directory, human-readable model name).
+#: Language code -> (directory, human-readable model name). Insertion order is
+#: Model H then Model L, and the checks below unpack it rather than naming codes
+#: literally, so the language pair can change in one place.
 LANGUAGES = {"hi": ("hindi", "Model H (Hindi)"), "ne": ("nepali", "Model L (Nepali)")}
 
 _FAILURES: list[str] = []
@@ -97,9 +99,12 @@ def main() -> int:
         )
         report["corpus"][language] = {s: len(v) for s, v in splits.items()}
 
-    hi_all = set().union(*per_language["hi"].values())
-    as_all = set().union(*per_language["as"].values())
-    shared = hi_all & as_all
+    # Keyed off LANGUAGES rather than literal codes, so changing the language pair
+    # cannot leave this comparing a language that is no longer in the project.
+    first, second = LANGUAGES
+    first_all = set().union(*per_language[first].values())
+    second_all = set().union(*per_language[second].values())
+    shared = first_all & second_all
     record(
         logger,
         "corpora share no documents",
@@ -150,26 +155,32 @@ def main() -> int:
 
     if len(models) == 2:
         record(logger, "tokenizer model files are distinct paths",
-               models["hi"].resolve() != models["as"].resolve(), "same file used for both")
+               models[first].resolve() != models[second].resolve(), "same file used for both")
         checksums = {lang: report["tokenizers"][lang]["model_sha256"] for lang in models}
         record(logger, "tokenizer models differ in content",
-               checksums["hi"] != checksums["as"], "identical checksums - one is a copy")
+               checksums[first] != checksums[second], "identical checksums - one is a copy")
 
     if len(vocabs) == 2:
-        hi_pieces = {line.split("\t")[0] for line in vocabs["hi"].read_text(encoding="utf-8").splitlines() if line}
-        as_pieces = {line.split("\t")[0] for line in vocabs["as"].read_text(encoding="utf-8").splitlines() if line}
-        record(logger, "vocabularies are not identical", hi_pieces != as_pieces,
+        pieces = {
+            lang: {line.split("\t")[0] for line in path.read_text(encoding="utf-8").splitlines() if line}
+            for lang, path in vocabs.items()
+        }
+        record(logger, "vocabularies are not identical", pieces[first] != pieces[second],
                "the two vocabularies contain exactly the same pieces")
 
-        # Hindi and Assamese use different scripts, so vocabulary overlap should be
-        # near zero - only punctuation, digits, and any incidental Latin. A high
-        # Jaccard here would mean one vocabulary was copied from the other.
-        overlap = len(hi_pieces & as_pieces)
-        union = len(hi_pieces | as_pieces)
+        # Hindi and Nepali share the Devanagari script, so unlike a cross-script
+        # pair some overlap is *expected* - both vocabularies will contain common
+        # Devanagari characters and frequent shared pieces. What must not happen is
+        # near-identity, which would mean one vocabulary was copied from the other
+        # rather than fitted on its own corpus. The threshold is therefore a
+        # near-duplicate test, not an "overlap must be zero" test.
+        overlap = len(pieces[first] & pieces[second])
+        union = len(pieces[first] | pieces[second])
         jaccard = overlap / union if union else 0.0
         logger.info(
             "  Vocabulary piece overlap: %s pieces, Jaccard %.3f "
-            "(near zero expected - the scripts differ; a high value would indicate reuse)",
+            "(the two languages share a script, so partial overlap is expected; "
+            "a value near 1.0 would indicate one vocabulary was copied)",
             f"{overlap:,}", jaccard,
         )
         record(logger, "vocabularies are not near-duplicates", jaccard < 0.95, f"Jaccard {jaccard:.3f}")
@@ -182,11 +193,14 @@ def main() -> int:
         path = REPO_ROOT / directory / "data/processed" / f"{language}_train.jsonl"
         if not path.exists():
             continue
-        counts = {"hi": 0, "as": 0, "bn": 0, "unknown": 0}
+        # Every label the identifier can return, so a document identified as a
+        # language outside this project's pair is counted rather than crashing.
+        counts = {code: 0 for code in ("hi", "ne", "bn", "as", "unknown")}
         for index, row in enumerate(iter_jsonl(path)):
             if index >= 2000:
                 break
-            counts[identifier.identify(row["text"]).language] += 1
+            verdict = identifier.identify(row["text"]).language
+            counts[verdict] = counts.get(verdict, 0) + 1
         total = sum(counts.values()) or 1
         correct = counts[language] / total
         logger.info("  %s: %.1f%% identified as %s (%s)", label, 100 * correct, language, counts)

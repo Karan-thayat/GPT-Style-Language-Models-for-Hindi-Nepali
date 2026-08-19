@@ -385,12 +385,21 @@ def sweep_vocabulary_sizes(
     return results
 
 
+#: Vocabulary band set by the course instructors (5-10K). The Phase 2 parameter
+#: budget of ~25M *includes* the embedding matrix, so a larger vocabulary would
+#: spend most of the budget on embeddings rather than on the Transformer blocks.
+MIN_VOCAB_SIZE = 5_000
+MAX_VOCAB_SIZE = 10_000
+
+
 def select_best_config(
     sweep_results: Sequence[dict],
     max_unk_rate: float = 1e-4,
     model_dim: int = 384,
     param_budget: int = 25_000_000,
     max_embedding_share: float = 0.40,
+    min_vocab_size: int = MIN_VOCAB_SIZE,
+    max_vocab_size: int = MAX_VOCAB_SIZE,
 ) -> dict | None:
     """Pick the best candidate from a sweep, trading fertility against parameters.
 
@@ -400,15 +409,23 @@ def select_best_config(
     always selects the largest candidate swept - the sweep would decide nothing.
     The real trade-off is against parameter cost: with tied input/output
     embeddings, the embedding matrix holds ``vocab_size x model_dim`` parameters,
-    and Phase 2's budget is a fixed ~25M. At d_model=384, a 32k vocabulary spends
-    12.3M parameters - roughly half the entire budget - on embeddings alone,
-    leaving too little for the Transformer blocks that actually do the modelling.
+    and Phase 2's budget is a fixed ~25M *including* embeddings. At d_model=384, a
+    32k vocabulary would spend 12.3M parameters - roughly half the entire budget -
+    on embeddings alone, leaving too little for the Transformer blocks that
+    actually do the modelling. This is why the course instructors capped the
+    vocabulary at 5-10K, and why that band is enforced here rather than merely
+    recommended.
 
     Selection rule, in priority order:
 
-    1. Discard candidates that failed to train, exceed `max_unk_rate`, or whose
+    1. Discard candidates that failed to train, fall outside the
+       ``[min_vocab_size, max_vocab_size]`` band, exceed `max_unk_rate`, or whose
        embedding matrix would exceed `max_embedding_share` of the budget.
-    2. Among the rest, maximize fertility improvement per parameter spent, by
+    2. Discard candidates with fertility <= 1.0. A fertility at or below one word
+       per token means the tokenizer is not segmenting into subwords at all, which
+       the instructors ruled out explicitly ("at the very least, try to achieve a
+       fertility > 1, i.e. sub-word tokenization").
+    3. Among the rest, maximize fertility improvement per parameter spent, by
        taking the candidate with the best fertility subject to the parameter cap,
        then stepping *down* to any smaller vocabulary within 3% fertility of it.
 
@@ -421,28 +438,37 @@ def select_best_config(
         model_dim: Planned Phase 2 model dimension, for the embedding-cost estimate.
         param_budget: Planned total parameter budget.
         max_embedding_share: Largest share of the budget embeddings may consume.
+        min_vocab_size: Smallest vocabulary the instructor band allows.
+        max_vocab_size: Largest vocabulary the instructor band allows.
 
     Returns:
         The winning result dict, or None when no candidate is viable.
     """
     max_embedding_params = param_budget * max_embedding_share
 
-    viable = [
+    def in_band(result: dict) -> bool:
+        """True when the candidate sits inside the mandated vocabulary band."""
+        return min_vocab_size <= result["vocab_size"] <= max_vocab_size
+
+    def is_subword(result: dict) -> bool:
+        """True when the tokenizer actually segments words into subwords."""
+        return result.get("fertility", 0.0) > 1.0
+
+    banded = [
         result
         for result in sweep_results
         if "error" not in result
+        and in_band(result)
         and result.get("unk_rate", 1.0) <= max_unk_rate
         and result.get("tokens", 0) > 0
-        and result["vocab_size"] * model_dim <= max_embedding_params
+        and is_subword(result)
     ]
+
+    viable = [r for r in banded if r["vocab_size"] * model_dim <= max_embedding_params]
     if not viable:
-        # Every candidate busts the parameter cap; fall back to unk-rate viability
-        # alone so the sweep still returns something rather than silently failing.
-        viable = [
-            result
-            for result in sweep_results
-            if "error" not in result and result.get("unk_rate", 1.0) <= max_unk_rate and result.get("tokens", 0) > 0
-        ]
+        # Every in-band candidate busts the parameter cap; fall back to the band
+        # itself so the sweep still returns something rather than silently failing.
+        viable = banded
     if not viable:
         return None
 

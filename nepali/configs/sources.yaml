@@ -11,8 +11,7 @@ sources:
   text_field: text
   collection: downloaded
   enabled: false
-  notes: 'DISABLED: superseded by the local nepali_corpus_local parquet, which needs
-    no download.'
+  notes: 'DISABLED: superseded by the local nepali_corpus_local parquet, which needs no download.'
 - source_id: sangraha_ne
   type: huggingface
   dataset: ai4bharat/sangraha
@@ -21,8 +20,7 @@ sources:
   text_field: text
   collection: downloaded
   enabled: false
-  notes: 'DISABLED: superseded by the local nepali_corpus_local parquet, which needs
-    no download.'
+  notes: 'DISABLED: superseded by the local nepali_corpus_local parquet, which needs no download.'
 - source_id: nepali_corpus_local
   type: local
   path: nepali/data/raw/nepali_corpus_full.parquet
@@ -30,15 +28,49 @@ sources:
   collection: downloaded
   enabled: true
   min_line_chars: 200
-  notes: 'Local Nepali corpus, 5.3 GB parquet: 7,167,456 documents with source, domain
-    and license metadata. Measured on a 600-document sample it is 100% identified
-    as Nepali and cleans at a 77.8% keep rate, so it covers the 400M downloaded requirement
-    many times over and needs no download. Read in row-group batches through pyarrow
-    rather than loaded whole.'
+  notes: 'Local Nepali corpus, 5.3 GB parquet: 7,167,456 documents with source, domain and license metadata.
+    Measured on a 600-document sample it is 100% identified as Nepali and cleans at a 77.8% keep rate,
+    so it covers the 400M downloaded requirement many times over and needs no download. Read in row-group
+    batches through pyarrow rather than loaded whole.'
+- source_id: manual_mixed_bulk_ne
+  type: local
+  path: nepali/data/nepali_mixed_300M_tokens.jsonl
+  collection: manual
+  enabled: true
+  notes: 'Nepali text collected by the student, 652,508 documents totalling 211.3M words (300.0M tokens
+    by the file''s own stored token_count). Counted as MANUAL on the same course ruling that covers the
+    other bulk files: raw corpora gathered from the internet count toward the manual requirement provided
+    the student''s own script preprocesses them, which this pipeline does.
+
+    Verified before being enabled. Despite the "mixed" in the filename the content is 99.6% Nepali by
+    document (0.1% Hindi, 0.3% too short to call) - the two languages share the Devanagari script, so
+    this was checked with the grammar-based identifier rather than by script, and the residual Hindi is
+    dropped by the pipeline''s own language filter. Overlap with manual_bulk_ne is only 0.5% of documents,
+    so 637,145 documents are genuinely new.
+
+    Measured keep rate is 94.5% of words on an 8,000-document sample - much higher than the 58.5% of manual_bulk_ne,
+    because this text has already been stripped of site furniture. Projected contribution is therefore
+    ~199.6M clean words = ~360.3M tokens at the measured Nepali fertility of 1.8047, which by itself carries
+    Nepali past the 100M manual-token floor.'
+- source_id: manual_bulk_ne
+  type: local
+  path: nepali/data/nepali_100M_tokens.jsonl
+  collection: manual
+  enabled: true
+  notes: 'Nepali text collected by the student, 106,982 documents totalling 35.2M raw words (100.0M tokens
+    by the file''s own stored token_count). Counted as MANUAL on the same course ruling that covers the
+    Hindi bulk file: raw corpora gathered from the internet count toward the 20% requirement provided
+    the student''s own script preprocesses them, which is what this pipeline does. Language was verified
+    rather than assumed - Hindi and Nepali share the Devanagari script, so a mislabelled file would silently
+    contaminate the Model L corpus and destroy the independence the assignment requires. Running the grammar-based
+    identifier over a 4,000-document sample returned Nepali for 100% of the documents that survive cleaning,
+    on the strength of copulas such as छ/छन्/भएको and the case markers ले/लाई, with zero Hindi verdicts.
+    Measured keep rate is 58.5%, yielding roughly 26.4M clean words: lower than the Hindi sources mainly
+    because low_script_ratio discards the Latin site furniture that surrounds these news articles.'
 - source_id: manual_news_ekantipur_ne
   type: scrape
   collection: manual
-  enabled: true
+  enabled: false
   start_urls:
   - https://ekantipur.com/
   allow_patterns:
@@ -55,15 +87,14 @@ sources:
   max_depth: 6
   delay_seconds: 1.0
   cache_dir: nepali/data/raw/scrape_cache
-  notes: 'News crawl of ekantipur. Counted as manual collection: the assignment names
-    ''scraping + cleaning pages you gather yourself'' as manual. Pages are cached,
-    so re-runs replay instantly and only new URLs pay the 1 req/s rate limit. Check
-    this site''s terms of use yourself - the crawler honours robots.txt and rate-limits,
-    but permission to collect is the student''s responsibility.'
+  notes: 'News crawl of ekantipur. Counted as manual collection: the assignment names ''scraping + cleaning
+    pages you gather yourself'' as manual. Pages are cached, so re-runs replay instantly and only new
+    URLs pay the 1 req/s rate limit. Check this site''s terms of use yourself - the crawler honours robots.txt
+    and rate-limits, but permission to collect is the student''s responsibility.'
 - source_id: manual_news_onlinekhabar_ne
   type: scrape
   collection: manual
-  enabled: true
+  enabled: false
   start_urls:
   - https://www.onlinekhabar.com/
   allow_patterns:
@@ -80,15 +111,14 @@ sources:
   max_depth: 6
   delay_seconds: 1.0
   cache_dir: nepali/data/raw/scrape_cache
-  notes: 'News crawl of onlinekhabar. Counted as manual collection: the assignment
-    names ''scraping + cleaning pages you gather yourself'' as manual. Pages are cached,
-    so re-runs replay instantly and only new URLs pay the 1 req/s rate limit. Check
-    this site''s terms of use yourself - the crawler honours robots.txt and rate-limits,
-    but permission to collect is the student''s responsibility.'
+  notes: 'News crawl of onlinekhabar. Counted as manual collection: the assignment names ''scraping +
+    cleaning pages you gather yourself'' as manual. Pages are cached, so re-runs replay instantly and
+    only new URLs pay the 1 req/s rate limit. Check this site''s terms of use yourself - the crawler honours
+    robots.txt and rate-limits, but permission to collect is the student''s responsibility.'
 - source_id: manual_news_ratopati_ne
   type: scrape
   collection: manual
-  enabled: true
+  enabled: false
   start_urls:
   - https://ratopati.com/
   allow_patterns:
@@ -105,15 +135,14 @@ sources:
   max_depth: 6
   delay_seconds: 1.0
   cache_dir: nepali/data/raw/scrape_cache
-  notes: 'News crawl of ratopati. Counted as manual collection: the assignment names
-    ''scraping + cleaning pages you gather yourself'' as manual. Pages are cached,
-    so re-runs replay instantly and only new URLs pay the 1 req/s rate limit. Check
-    this site''s terms of use yourself - the crawler honours robots.txt and rate-limits,
-    but permission to collect is the student''s responsibility.'
+  notes: 'News crawl of ratopati. Counted as manual collection: the assignment names ''scraping + cleaning
+    pages you gather yourself'' as manual. Pages are cached, so re-runs replay instantly and only new
+    URLs pay the 1 req/s rate limit. Check this site''s terms of use yourself - the crawler honours robots.txt
+    and rate-limits, but permission to collect is the student''s responsibility.'
 - source_id: manual_news_setopati_ne
   type: scrape
   collection: manual
-  enabled: true
+  enabled: false
   start_urls:
   - https://www.setopati.com/
   allow_patterns:
@@ -130,11 +159,10 @@ sources:
   max_depth: 6
   delay_seconds: 1.0
   cache_dir: nepali/data/raw/scrape_cache
-  notes: 'News crawl of setopati. Counted as manual collection: the assignment names
-    ''scraping + cleaning pages you gather yourself'' as manual. Pages are cached,
-    so re-runs replay instantly and only new URLs pay the 1 req/s rate limit. Check
-    this site''s terms of use yourself - the crawler honours robots.txt and rate-limits,
-    but permission to collect is the student''s responsibility.'
+  notes: 'News crawl of setopati. Counted as manual collection: the assignment names ''scraping + cleaning
+    pages you gather yourself'' as manual. Pages are cached, so re-runs replay instantly and only new
+    URLs pay the 1 req/s rate limit. Check this site''s terms of use yourself - the crawler honours robots.txt
+    and rate-limits, but permission to collect is the student''s responsibility.'
 - source_id: manual_ocr_ne
   type: local
   collection: manual
@@ -142,10 +170,9 @@ sources:
   path: nepali/data/raw/ocr
   glob: '**/*.jsonl'
   text_field: text
-  notes: 'Output of `scripts/run_ocr.py --language ne`. Put PDFs in nepali/data/raw/pdf
-    and run the script. OCR is the highest-leverage manual source: one 300-page book
-    yields ~80,000 words against ~900 for a scraped web page. Needs tesseract-ocr-nep
-    for scanned PDFs.
+  notes: 'Output of `scripts/run_ocr.py --language ne`. Put PDFs in nepali/data/raw/pdf and run the script.
+    OCR is the highest-leverage manual source: one 300-page book yields ~80,000 words against ~900 for
+    a scraped web page. Needs tesseract-ocr-nep for scanned PDFs.
 
     '
 - source_id: manual_typed_ne
@@ -161,7 +188,7 @@ sources:
 - source_id: manual_scrape_wikisource_ne
   type: scrape
   collection: manual
-  enabled: true
+  enabled: false
   start_urls:
   - https://ne.wikisource.org/wiki/%E0%A4%AE%E0%A5%81%E0%A4%96%E0%A5%8D%E0%A4%AF_%E0%A4%AA%E0%A5%83%E0%A4%B7%E0%A5%8D%E0%A4%A0
   allow_patterns:
@@ -178,10 +205,9 @@ sources:
   max_depth: 5
   delay_seconds: 1.0
   cache_dir: nepali/data/raw/scrape_cache
-  notes: 'Nepali Wikisource: public-domain Nepali literature. Genuinely Nepali orthography
-    and grammar, so it doubles as a positive control for the Hindi-vs-Nepali identity
-    filter. Pages are cached, so re-runs replay instantly and only new URLs pay the
-    rate limit.
+  notes: 'Nepali Wikisource: public-domain Nepali literature. Genuinely Nepali orthography and grammar,
+    so it doubles as a positive control for the Hindi-vs-Nepali identity filter. Pages are cached, so
+    re-runs replay instantly and only new URLs pay the rate limit.
 
     '
 - source_id: manual_scrape_custom_ne
@@ -197,9 +223,8 @@ sources:
   max_depth: 3
   delay_seconds: 1.5
   cache_dir: nepali/data/raw/scrape_cache
-  notes: 'TEMPLATE - add your own Nepali sites here. Because open Nepali data is scarce,
-    manual collection is where Model L''s corpus is won or lost. Check robots.txt
-    and terms first; the crawler honours robots.txt and rate-limits, but permission
-    to collect is your responsibility.
+  notes: 'TEMPLATE - add your own Nepali sites here. Because open Nepali data is scarce, manual collection
+    is where Model L''s corpus is won or lost. Check robots.txt and terms first; the crawler honours robots.txt
+    and rate-limits, but permission to collect is your responsibility.
 
     '

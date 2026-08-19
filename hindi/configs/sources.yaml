@@ -68,6 +68,35 @@ sources:
     gather yourself), and it is currently the single largest contributor to the >=20%
     manual requirement - larger than all the OCR''d books combined. One document per
     line, streamed rather than loaded.'
+- source_id: manual_news_crawled_hi
+  type: local
+  path: hindi/data/raw/scraped/news_crawled.jsonl
+  collection: manual
+  enabled: true
+  notes: 'Dainik Bhaskar pages crawled by this project''s own scraper, 2,996 documents
+    and 2.29M raw words. Pointed at the file directly rather than folded into
+    manual_scraped_news_hi, whose ''**/*.txt'' glob cannot see it and whose
+    one_document_per_line setting would be wrong here: this is JSONL and the loader
+    must read the per-record text field instead of treating each line as a document.
+    Yield is lower than the other manual sources - measured 69.1% keep rate for 1.24M
+    clean words - because a crawl of a news front page collects navigation menus,
+    video timestamps and copyright footers alongside articles, and the repeated_lines
+    and long_char_run filters correctly discard those. Verified to have zero exact-text
+    overlap with both the built corpus and hindi_50M_tokens.jsonl.'
+- source_id: manual_bulk_hi
+  type: local
+  path: hindi/data/raw/hindi_50M_tokens.jsonl
+  collection: manual
+  enabled: true
+  notes: 'Hindi text collected by the student, 48,510 documents totalling 24.1M words
+    (50.0M tokens by the file''s own stored token_count). Counted as MANUAL: the
+    course Q&A confirmed that raw unprocessed corpora gathered from the internet
+    count toward the 20% requirement provided they are preprocessed by the
+    student''s own script, which is what this pipeline does. Verified against the
+    built corpus before being added: zero exact-text overlap with the 736,938
+    documents already ingested from IndicCorp, so every word here is additional
+    rather than a re-count of downloaded material. JSONL with a text field per
+    line, so the loader streams it directly without one_document_per_line.'
 - source_id: wikipedia_dump_hi
   type: local
   path: hindi/data/raw/downloaded
