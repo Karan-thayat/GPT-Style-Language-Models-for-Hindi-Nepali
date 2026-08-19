@@ -53,3 +53,8 @@ Thumbs.db
 .vscode/
 .idea/
 *.swp
+
+# --- Local helper scripts and the assignment handout (not deliverables) ------
+ocr_status.sh
+scrape_status.sh
+LMA_Individual_Project_v1.pdf
