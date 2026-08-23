@@ -313,18 +313,18 @@ without an access request.
 
 ```
 LMA-Individual-Project/
-├── phase1-processed/     11.8 GB   the corpora behind every figure in the report
+├── Phase1-Processed/     11.8 GB   the corpora behind every figure in the report
 │   ├── hindi/            hi_train.jsonl, hi_validation.jsonl, hi_test.jsonl
 │   └── nepali/           ne_train.jsonl, ne_validation.jsonl, ne_test.jsonl
-├── phase1-manual/         5.7 GB   the manually collected sources (>=20% requirement)
+├── Phase1-Manual/         5.7 GB   the manually collected sources (>=20% requirement)
 │   ├── hindi/            bulk JSONL, wikipedia.txt, scraped/, ocr/
 │   └── nepali/           bulk JSONL, scraped/
-└── phase1-sources/       11.6 GB   mirrors of the public corpora, for convenience only
+└── Phase1-Sources/       11.6 GB   mirrors of the public corpora, for convenience only
     ├── indiccorp.txt                 (AI4Bharat IndicCorp, Hindi)
     └── nepali_corpus_full.parquet    (public Nepali corpus)
 ```
 
-`phase1-sources/` holds third-party public datasets under their own licences; they
+`Phase1-Sources/` holds third-party public datasets under their own licences; they
 are mirrored only so a reviewer can reproduce a build without re-downloading. Their
 provenance is recorded in `hindi/configs/sources.yaml` and
 `nepali/configs/sources.yaml`.
@@ -333,11 +333,11 @@ provenance is recorded in `hindi/configs/sources.yaml` and
 
 | Artifact | Phase | Size | Link |
 |---|---|---|---|
-| Hindi processed splits (Model H) | 1 | 5.23 GB | [`phase1-processed/hindi/`](https://drive.google.com/drive/folders/1ggiw-RzYTUgkXLhky2u73tObkw7MKbJT?usp=drive_link) |
-| Nepali processed splits (Model L) | 1 | 6.61 GB | [`phase1-processed/nepali/`](https://drive.google.com/drive/folders/1ggiw-RzYTUgkXLhky2u73tObkw7MKbJT?usp=drive_link) |
-| Hindi manual-collection sources | 1 | 1.31 GB | [`phase1-manual/hindi/`](https://drive.google.com/drive/folders/1ggiw-RzYTUgkXLhky2u73tObkw7MKbJT?usp=drive_link) |
-| Nepali manual-collection sources | 1 | 4.36 GB | [`phase1-manual/nepali/`](https://drive.google.com/drive/folders/1ggiw-RzYTUgkXLhky2u73tObkw7MKbJT?usp=drive_link) |
-| Public source corpora (optional) | 1 | 11.56 GB | [`phase1-sources/`](https://drive.google.com/drive/folders/1ggiw-RzYTUgkXLhky2u73tObkw7MKbJT?usp=drive_link) |
+| Hindi processed splits (Model H) | 1 | 5.23 GB | [`Phase1-Processed/hindi/`](https://drive.google.com/drive/folders/1ggiw-RzYTUgkXLhky2u73tObkw7MKbJT?usp=drive_link) |
+| Nepali processed splits (Model L) | 1 | 6.61 GB | [`Phase1-Processed/nepali/`](https://drive.google.com/drive/folders/1ggiw-RzYTUgkXLhky2u73tObkw7MKbJT?usp=drive_link) |
+| Hindi manual-collection sources | 1 | 1.31 GB | [`Phase1-Manual/hindi/`](https://drive.google.com/drive/folders/1ggiw-RzYTUgkXLhky2u73tObkw7MKbJT?usp=drive_link) |
+| Nepali manual-collection sources | 1 | 4.36 GB | [`Phase1-Manual/nepali/`](https://drive.google.com/drive/folders/1ggiw-RzYTUgkXLhky2u73tObkw7MKbJT?usp=drive_link) |
+| Public source corpora (optional) | 1 | 11.56 GB | [`Phase1-Sources/`](https://drive.google.com/drive/folders/1ggiw-RzYTUgkXLhky2u73tObkw7MKbJT?usp=drive_link) |
 | Model H pretrained checkpoint | 2 | — | _pending_ |
 | Model L pretrained checkpoint | 2 | — | _pending_ |
 | Model H / L finetuned checkpoints | 3 | — | _pending_ |
