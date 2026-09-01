@@ -31,3 +31,4 @@ regex==2026.7.19
 #       tesseract-ocr-ben tesseract-ocr-asm
 #
 # Check availability with:  python scripts/run_ocr.py --language bn --check
+torch>=2.0

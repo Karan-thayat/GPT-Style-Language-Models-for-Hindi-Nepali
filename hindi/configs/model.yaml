@@ -1,0 +1,36 @@
+# Phase 2 model and training configuration for hindi.
+#
+# Architecture is identical to the other language so that any Phase 2 difference
+# reflects data scale - the variable under study - rather than model capacity.
+# Only the vocabulary comes from this language's own Phase 1 tokenizer.
+
+model:
+  vocab_size: 8000        # from hi_unigram_8000.model
+  n_layer: 12
+  n_head: 6
+  n_embd: 384             # head_dim = 384 / 6 = 64
+  n_inner: 1536           # 4x n_embd
+  block_size: 512
+  dropout: 0.1
+  tie_weights: true       # saves 3.07M params (vocab_size x n_embd)
+  bias: true
+  # Exact trainable parameters: 24,562,944 (98.3% of the ~25M target)
+  # Embeddings are 13.3% of that; the remaining 86.7% is in the 12 blocks.
+
+training:
+  batch_size: 24           # per step; tuned for 16GB GPU at block_size 512
+  gradient_accumulation: 4 # effective batch 96 sequences = ~49k tokens
+  learning_rate: 6.0e-4
+  min_learning_rate: 6.0e-5
+  warmup_steps: 500
+  max_steps: 12000
+  weight_decay: 0.1
+  beta1: 0.9
+  beta2: 0.95
+  grad_clip: 1.0
+  eval_interval: 500
+  eval_batches: 100
+  checkpoint_interval: 1000
+  seed: 20260812
+  compile: false           # torch.compile; off by default for Kaggle stability
+  amp: true                # mixed precision
