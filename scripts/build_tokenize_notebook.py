@@ -16,7 +16,37 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 OUTPUT = REPO_ROOT / "notebooks" / "phase2_tokenize_corpora.ipynb"
 
 DRIVE_FOLDER = "https://drive.google.com/drive/folders/16iUGbzj89eBr4R8P77irYxDB4lT_EAC2"
-GITHUB_REPO = "https://github.com/CL3-410/individual-project-Karan-thayat.git"
+
+#: Tokenizers are embedded in the notebook rather than cloned. The GitHub
+#: Classroom repository is private, so an unauthenticated `git clone` from Kaggle
+#: prompts for credentials and fails; making the repository public to work around
+#: that would be the wrong trade for a graded submission. The two models are about
+#: 200 KB each and compress to under 100 KB, so carrying them inline costs little
+#: and removes the dependency entirely.
+TOKENIZERS = {
+    "hi": REPO_ROOT / "hindi" / "tokenizer" / "hi_unigram_8000.model",
+    "ne": REPO_ROOT / "nepali" / "tokenizer" / "ne_unigram_8000.model",
+}
+
+
+def _embedded_tokenizers() -> str:
+    """Base64+gzip the tokenizer models for inlining into the notebook."""
+    import base64
+    import gzip
+
+    parts = []
+    for lang, path in TOKENIZERS.items():
+        if not path.exists():
+            raise FileNotFoundError(
+                f"{path} is missing; the notebook cannot embed the {lang} tokenizer"
+            )
+        blob = base64.b64encode(gzip.compress(path.read_bytes(), 9)).decode()
+        # Wrap so the notebook JSON stays readable rather than one enormous line.
+        wrapped = "\n".join(
+            '    "' + blob[i : i + 96] + '"' for i in range(0, len(blob), 96)
+        )
+        parts.append(f'"{lang}": (\n{wrapped}\n),')
+    return "\n".join(parts)
 
 
 def _lines(text: str) -> list[str]:
@@ -108,27 +138,39 @@ disk()
 """))
 
     cells.append(markdown("""
-## 1. Tokenizers from GitHub
+## 1. Tokenizers
 
-The `.model` files are about 200 KB each and live in the repository rather than
-on Drive, so this is a quick shallow clone.
+The two Phase 1 SentencePiece models are **embedded in this notebook**, so there
+is nothing to download and no credentials to supply. The GitHub Classroom
+repository is private, so cloning it from Kaggle would prompt for a username and
+fail; the models are small enough (about 200 KB each, under 100 KB compressed)
+that carrying them inline is simpler than any of the alternatives.
+
+The SHA-256 of each decoded model is printed so it can be checked against the
+Phase 1 artifacts if there is ever any doubt about which tokenizer was used.
 """))
 
     cells.append(code(f"""
-REPO = "{GITHUB_REPO}"
-TOK = WORK / "repo"
+import base64
+import gzip
+import hashlib
 
-result = subprocess.run(
-    ["git", "clone", "-q", "--depth", "1", "--branch", "phase-1", REPO, str(TOK)],
-    capture_output=True,
-    text=True,
-)
-print("clone:", "ok" if result.returncode == 0 else result.stderr[:400])
+# Phase 1 SentencePiece models, gzipped and base64-encoded.
+EMBEDDED_TOKENIZERS = {{
+{_embedded_tokenizers()}
+}}
 
-models = sorted(TOK.rglob("*_unigram_8000.model"))
-for model in models:
-    print(f"  {{model.relative_to(TOK)}}  {{model.stat().st_size / 1024:.0f}} KB")
+TOK = WORK / "tokenizers"
+TOK.mkdir(parents=True, exist_ok=True)
 
+for lang, blob in EMBEDDED_TOKENIZERS.items():
+    raw = gzip.decompress(base64.b64decode(blob))
+    path = TOK / f"{{lang}}_unigram_8000.model"
+    path.write_bytes(raw)
+    digest = hashlib.sha256(raw).hexdigest()[:16]
+    print(f"  {{path.name}}  {{len(raw) / 1024:.0f}} KB  sha256:{{digest}}")
+
+models = sorted(TOK.glob("*_unigram_8000.model"))
 assert len(models) == 2, f"expected 2 tokenizer models, found {{len(models)}}"
 """))
 
