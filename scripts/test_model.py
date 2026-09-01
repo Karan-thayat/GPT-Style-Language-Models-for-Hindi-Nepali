@@ -293,6 +293,78 @@ def test_phase2_budget() -> None:
     print(f"        embedding share:       {100 * cfg.embedding_share():.1f}%")
 
 
+def test_training_resume() -> None:
+    """A run stopped and resumed must match one that never stopped.
+
+    This is the property Kaggle's 12-hour session limit depends on: a full
+    pretraining run spans several sessions, and if resuming perturbed the
+    trajectory the loss curve would carry an artifact at every session boundary.
+
+    Note that `max_steps` must stay fixed across the interruption. It defines the
+    cosine decay horizon, so shortening it for a partial run compresses the whole
+    schedule into those steps and produces genuinely different weights - a
+    difference in configuration, not a resume bug.
+    """
+    print("\n[training resume]")
+    import tempfile
+
+    import numpy as np
+
+    from lma.train import TokenBinaryDataset, TrainConfig, Trainer
+
+    data_dir = Path(tempfile.mkdtemp())
+    tokens = (np.arange(200_000) % 97).astype(np.uint16)
+    (data_dir / "train.bin").write_bytes(tokens.tobytes())
+    (data_dir / "val.bin").write_bytes(tokens[:40_000].tobytes())
+
+    def make(out_dir: Path) -> "Trainer":
+        torch.manual_seed(0)
+        model_cfg = ModelConfig(
+            vocab_size=97, n_layer=2, n_head=4, n_embd=64, block_size=32, dropout=0.0
+        )
+        train_cfg = TrainConfig(
+            batch_size=8, gradient_accumulation=2, max_steps=40, warmup_steps=10,
+            eval_interval=1000, eval_batches=5, checkpoint_interval=10,
+            log_interval=1000, amp=False, seed=7,
+        )
+        return Trainer(
+            TransformerLM(model_cfg),
+            TokenBinaryDataset(data_dir / "train.bin", 32, seed=7),
+            TokenBinaryDataset(data_dir / "val.bin", 32, seed=8),
+            train_cfg,
+            out_dir,
+            device="cpu",
+        )
+
+    straight = make(Path(tempfile.mkdtemp()) / "straight")
+    straight.train(resume=False)
+    straight_loss = straight.evaluate(batches=5)["val_loss"]
+
+    interrupted_dir = Path(tempfile.mkdtemp()) / "interrupted"
+    first = make(interrupted_dir)
+    first.train(max_seconds=0.0001, resume=False)   # stop almost immediately
+    stopped_at = first.state.step
+    second = make(interrupted_dir)
+    second.train(resume=True)
+    resumed_loss = second.evaluate(batches=5)["val_loss"]
+
+    check(
+        "interrupted run resumes to the same weights",
+        abs(straight_loss - resumed_loss) < 1e-5,
+        f"{straight_loss:.6f} vs {resumed_loss:.6f}",
+    )
+    check("resume actually happened mid-run", 0 < stopped_at < 40, f"stopped at {stopped_at}")
+    check(
+        "checkpoint carries optimizer, scheduler position, and step",
+        all(
+            key in torch.load(
+                interrupted_dir / "checkpoint_latest.pt", map_location="cpu", weights_only=False
+            )
+            for key in ("model", "optimizer", "step", "model_config", "train_config")
+        ),
+    )
+
+
 def main() -> int:
     print("Phase 2 model component tests")
     print("=" * 60)
@@ -304,6 +376,7 @@ def main() -> int:
     test_training_step()
     test_generation()
     test_phase2_budget()
+    test_training_resume()
 
     print("\n" + "=" * 60)
     total = PASSED + len(FAILED)

@@ -1,0 +1,25 @@
+{
+  "description": "Token counts for the Phase 2 training binaries, verified on Kaggle.",
+  "encoding": "uint16, documents concatenated with one EOS separator each",
+  "note": "Counts run slightly above the Phase 1 figures because the binary adds one EOS token per document; Phase 1 counted only document content.",
+  "languages": {
+    "hi": {
+      "tokenizer": "hi_unigram_8000.model",
+      "vocab_size": 8000,
+      "train_tokens": 579241374,
+      "phase1_train_tokens": 578319564,
+      "delta_pct": 0.16,
+      "train_bytes": 1160000000
+    },
+    "ne": {
+      "tokenizer": "ne_unigram_8000.model",
+      "vocab_size": 8000,
+      "train_tokens": 611732909,
+      "phase1_train_tokens": 610989716,
+      "delta_pct": 0.12,
+      "train_bytes": 1220000000
+    }
+  },
+  "total_bytes": 2460000000,
+  "kaggle_dataset": "lma-phase2-tokenized"
+}
