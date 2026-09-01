@@ -15,7 +15,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent
 OUTPUT = REPO_ROOT / "notebooks" / "phase2_tokenize_corpora.ipynb"
 
-DRIVE_FOLDER = "https://drive.google.com/drive/folders/1ggiw-RzYTUgkXLhky2u73tObkw7MKbJT"
+DRIVE_FOLDER = "https://drive.google.com/drive/folders/16iUGbzj89eBr4R8P77irYxDB4lT_EAC2"
 GITHUB_REPO = "https://github.com/CL3-410/individual-project-Karan-thayat.git"
 
 
