@@ -188,6 +188,13 @@ validation and test files.
     cells.append(code(f"""
 PROCESSED_FOLDER = "{DRIVE_FOLDER}"
 
+# Which languages to fetch this run. Google Drive rate-limits repeated bulk
+# downloads of the same large files ("Too many users have viewed or downloaded
+# this file recently"), and the quota can take hours to clear. Doing one language
+# at a time halves the volume per run and keeps you under it; the outputs from
+# separate runs can be combined into one dataset afterwards.
+LANGUAGES = ["hi", "ne"]        # e.g. ["hi"] to fetch Hindi only
+
 RAW = WORK / "corpora"
 RAW.mkdir(parents=True, exist_ok=True)
 
@@ -292,7 +299,7 @@ def encode_split(jsonl_path: Path, sp, out_path: Path) -> dict:
 
 manifest = {}
 
-for lang in ("hi", "ne"):
+for lang in LANGUAGES:
     tokenizer_path = locate(f"{lang}_unigram_8000.model", TOK)
     sp = spm.SentencePieceProcessor(model_file=str(tokenizer_path))
     manifest[lang] = {"vocab_size": sp.get_piece_size(), "splits": {}}
@@ -333,7 +340,7 @@ for lang, spec in manifest.items():
 
 print()
 
-for lang in ("hi", "ne"):
+for lang in LANGUAGES:
     sp = spm.SentencePieceProcessor(model_file=str(locate(f"{lang}_unigram_8000.model", TOK)))
     array = np.memmap(OUT / f"{lang}_train.bin", dtype=np.uint16, mode="r")
     print(f"[{lang}] {len(array):,} tokens on disk")
