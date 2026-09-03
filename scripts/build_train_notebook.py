@@ -177,9 +177,29 @@ for split in ("train", "validation"):
         raise FileNotFoundError(f"{expected} is missing from the attached dataset")
 
 if torch.cuda.is_available():
-    name = torch.cuda.get_device_name(0)
-    total = torch.cuda.get_device_properties(0).total_memory / 1e9
-    print(f"\\nGPU: {name}  {total:.1f} GB  bf16={torch.cuda.is_bf16_supported()}")
+    properties = torch.cuda.get_device_properties(0)
+    capability = torch.cuda.get_device_capability(0)
+    print(f"\\nGPU: {properties.name}  {properties.total_memory / 1e9:.1f} GB")
+    print(f"   compute capability: sm_{capability[0]}{capability[1]}")
+    print(f"   torch {torch.__version__}, built for CUDA {torch.version.cuda}")
+    print(f"   kernels compiled for: {torch.cuda.get_arch_list()}")
+    print(f"   bf16 supported: {torch.cuda.is_bf16_supported()}")
+
+    # A torch build carrying no kernels for this card fails with "no kernel image
+    # is available for execution on the device" on the first real operation -
+    # which happens inside the training loop, long after the setup cells have
+    # reported success. Provoke it here instead, where the diagnosis is cheap.
+    try:
+        probe = torch.zeros(8, device="cuda") + 1
+        _ = (probe @ probe).item()
+        print("\\n   GPU compute check: OK")
+    except RuntimeError as error:
+        raise RuntimeError(
+            f"This PyTorch build has no kernels for sm_{capability[0]}{capability[1]} "
+            f"(it carries {torch.cuda.get_arch_list()}). Switch the Accelerator to a "
+            "different GPU type, or reinstall a matching torch build. "
+            f"Original error: {error}"
+        ) from error
 else:
     print("\\nWARNING: no GPU. Set Accelerator to GPU in Settings, or this will take days.")
 """))
