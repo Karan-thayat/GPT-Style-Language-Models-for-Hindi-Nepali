@@ -150,17 +150,31 @@ print(f"\\nunpacked {{len(modules)}} modules")
 import torch
 
 INPUT = Path("/kaggle/input")
-candidates = sorted(INPUT.glob("*/*_train.bin")) + sorted(INPUT.glob("*/*/*_train.bin"))
+
+# rglob rather than a fixed depth: Kaggle nests a dataset under its own name, and
+# the tokenization notebook wrote its output inside a "tokenized/" folder, so the
+# binaries can sit two or three levels down depending on how the dataset was
+# created. Searching recursively covers every arrangement.
+candidates = sorted(INPUT.rglob("*_train.bin"))
 if not candidates:
+    available = sorted(p.name for p in INPUT.iterdir()) if INPUT.exists() else []
     raise FileNotFoundError(
-        "No *_train.bin under /kaggle/input. Use '+ Add Data' to attach the "
-        "lma-phase2-tokenized dataset."
+        "No *_train.bin found under /kaggle/input. "
+        f"Attached datasets: {available or 'none'}. "
+        "Use '+ Add Data' to attach lma-phase2-tokenized."
     )
 
 DATA_DIR = candidates[0].parent
 print("data:", DATA_DIR)
 for path in sorted(DATA_DIR.glob("*.bin")):
     print(f"   {path.stat().st_size / 1e9:6.2f} GB  {path.name}")
+
+# Fail early and clearly if the split this run needs is missing, rather than
+# deep inside the training loop.
+for split in ("train", "validation"):
+    expected = DATA_DIR / f"{LANGUAGE}_{split}.bin"
+    if not expected.exists():
+        raise FileNotFoundError(f"{expected} is missing from the attached dataset")
 
 if torch.cuda.is_available():
     name = torch.cuda.get_device_name(0)
