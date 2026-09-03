@@ -365,6 +365,81 @@ def test_training_resume() -> None:
     )
 
 
+def test_evaluation_metrics() -> None:
+    """The Phase 2 metrics must be right at their known extremes."""
+    print("\n[evaluation metrics]")
+    from lma.eval import chrf_score, corpus_bleu, diversity_metrics, rouge_l
+
+    identical = ["यह एक अच्छा दिन है", "भारत एक विशाल देश है"]
+    unrelated = ["आज मौसम बहुत खराब था", "कल हम बाजार गए थे"]
+
+    check("BLEU is 100 on identical text", abs(corpus_bleu(identical, identical)["bleu"] - 100) < 1e-6)
+    check("chrF is 100 on identical text", abs(chrf_score(identical, identical)["chrf"] - 100) < 1e-6)
+    check("ROUGE-L is 100 on identical text", abs(rouge_l(identical, identical)["rouge_l"] - 100) < 1e-6)
+    check("BLEU is 0 on unrelated text", corpus_bleu(identical, unrelated)["bleu"] < 1.0)
+    check("ROUGE-L is 0 on unrelated text", rouge_l(identical, unrelated)["rouge_l"] < 1.0)
+
+    # The brevity penalty is what stops a single high-precision word scoring well.
+    short = corpus_bleu(["यह"], ["यह एक अच्छा दिन है"])
+    check("brevity penalty punishes short output", short["brevity_penalty"] < 0.5)
+
+    varied = diversity_metrics(["एक दो तीन चार पांच छह सात आठ"])
+    repeated = diversity_metrics(["एक एक एक एक एक एक एक एक"])
+    check("repetition rate catches a degenerate loop", repeated["repetition_rate"] > 0.5)
+    check("repetition rate is 0 on varied text", varied["repetition_rate"] == 0.0)
+    check("distinct-1 falls on repeated text", repeated["distinct_1"] < varied["distinct_1"])
+
+    check(
+        "misaligned inputs are rejected",
+        _raises(lambda: corpus_bleu(["a"], ["a", "b"]), ValueError),
+    )
+
+
+def test_attention_analysis() -> None:
+    print("\n[attention analysis]")
+    from lma.eval import attention_statistics, classify_heads
+
+    torch.manual_seed(0)
+    cfg = tiny_config(n_layer=3, n_head=4, n_embd=64, block_size=32, dropout=0.0)
+    model = TransformerLM(cfg).eval()
+    with torch.no_grad():
+        attentions = model(torch.arange(24).unsqueeze(0) % cfg.vocab_size, return_attention=True)[
+            "attentions"
+        ]
+
+    stats = attention_statistics(attentions)
+    check("one entropy row per layer", len(stats["entropy"]) == cfg.n_layer)
+    check("one entropy value per head", len(stats["entropy"][0]) == cfg.n_head)
+
+    # Entropy is bounded below by 0, and the normalized form by 1 - a value
+    # outside that range means the causal mask or the normalizer is wrong.
+    flat_entropy = [v for row in stats["entropy"] for v in row]
+    flat_normalized = [v for row in stats["normalized_entropy"] for v in row]
+    check("entropy is non-negative", all(v >= 0 for v in flat_entropy))
+    check("normalized entropy stays within [0, 1]", all(0 <= v <= 1.001 for v in flat_normalized))
+
+    # A causal head cannot attend forward, so mean distance is never negative and
+    # cannot exceed the sequence length.
+    flat_distance = [v for row in stats["mean_distance"] for v in row]
+    check("mean attention distance is non-negative", all(v >= 0 for v in flat_distance))
+    check("mean attention distance is under the sequence length", all(v < 24 for v in flat_distance))
+
+    grouped = classify_heads(stats)
+    total = sum(grouped["counts"].values())
+    check("every head is classified exactly once", total == cfg.n_layer * cfg.n_head)
+
+
+def _raises(fn, exception) -> bool:
+    """True when `fn` raises `exception`."""
+    try:
+        fn()
+    except exception:
+        return True
+    except Exception:
+        return False
+    return False
+
+
 def main() -> int:
     print("Phase 2 model component tests")
     print("=" * 60)
@@ -377,6 +452,8 @@ def main() -> int:
     test_generation()
     test_phase2_budget()
     test_training_resume()
+    test_evaluation_metrics()
+    test_attention_analysis()
 
     print("\n" + "=" * 60)
     total = PASSED + len(FAILED)
