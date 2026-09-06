@@ -239,6 +239,10 @@ def plot_loss_curves(artifacts: dict, out_path: Path) -> Path | None:
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
+    # A run that stopped before its first evaluation has no rows to draw.
+    if not any(h.get("history") for h in histories.values()):
+        return None
+
     figure, axes = plt.subplots(1, 2, figsize=(11, 4))
 
     for code, history in histories.items():
