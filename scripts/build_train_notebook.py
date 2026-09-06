@@ -248,15 +248,39 @@ on its own terms rather than being killed mid-step.
 OUT = Path("/kaggle/working") / f"{LANGUAGE}_model"
 OUT.mkdir(parents=True, exist_ok=True)
 
-# Seed a checkpoint from a previous session's dataset, if one is attached.
-for previous in INPUT.glob("*/*_model/checkpoint_latest.pt"):
-    if previous.parent.name == OUT.name and not (OUT / "checkpoint_latest.pt").exists():
-        import shutil
+# Seed from a previous session's checkpoint dataset so the run continues instead
+# of starting over.
+#
+# rglob rather than a fixed-depth glob: Kaggle mounts a dataset under its own
+# name and may nest the notebook's output folder inside it, so the checkpoint can
+# sit at a depth this cannot predict. A fixed pattern that misses simply finds
+# nothing - and the failure is silent, because training then starts from step 0
+# and looks perfectly healthy for ten hours.
+import shutil
 
+resumed_from = None
+if not (OUT / "checkpoint_latest.pt").exists():
+    for previous in sorted(INPUT.rglob("checkpoint_latest.pt")):
+        # Only take a checkpoint belonging to THIS language: attaching both
+        # languages' datasets at once would otherwise seed Nepali from Hindi.
+        if previous.parent.name != OUT.name:
+            continue
         for item in previous.parent.glob("*"):
             shutil.copy2(item, OUT / item.name)
-        print(f"seeded from {previous.parent}")
+        resumed_from = previous.parent
         break
+
+if resumed_from is not None:
+    print(f"seeded from {resumed_from}")
+else:
+    # State this loudly. A silent fall-through to step 0 wastes a full session,
+    # and the log otherwise looks completely normal.
+    found = sorted(p.parent.name for p in INPUT.rglob("checkpoint_latest.pt"))
+    print("NO CHECKPOINT SEEDED - this run will start from step 0.")
+    print(f"   looking for a folder named '{OUT.name}' under /kaggle/input")
+    print(f"   checkpoint folders found: {found or 'none'}")
+    print("   If you meant to resume, stop now and attach "
+          f"lma-phase2-{LANGUAGE}-checkpoint.")
 
 train_config = TrainConfig(
     batch_size=24,
