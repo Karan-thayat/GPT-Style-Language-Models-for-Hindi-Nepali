@@ -17,6 +17,9 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent
 OUTPUT = REPO_ROOT / "notebooks" / "phase2_pretrain.ipynb"
 
+#: Where the modules are written inside the Kaggle session.
+SRC_DIR = "/kaggle/working/src"
+
 #: Source files shipped inside the notebook. The GitHub Classroom repository is
 #: private, so Kaggle cannot clone it; embedding the package keeps the notebook
 #: self-contained and guarantees it runs the same code that is committed here.
@@ -52,20 +55,34 @@ def code(text: str) -> dict:
     }
 
 
-def _embedded_source() -> str:
-    """Pack the lma package into one base64 blob for the notebook."""
-    payload = {}
+def _module_cells() -> list[dict]:
+    """One notebook cell per module, holding the source as plain Python.
+
+    The project code has to travel inside the notebook because the GitHub
+    Classroom repository is private and Kaggle cannot clone it. An earlier
+    version shipped the package as a single base64 blob: smaller, but unreadable,
+    which is a poor trade for a graded submission that has to be explained and
+    defended.
+
+    Each cell uses Jupyter's ``%%writefile`` magic, which writes the rest of the
+    cell verbatim to a file. That matters here because the modules contain
+    docstrings: any scheme that wraps the source in a Python string - a heredoc, a
+    triple-quoted literal - breaks on the first ``\"\"\"`` it meets, and these
+    files carry twenty apiece. ``%%writefile`` does no quoting at all, so the code
+    appears in the notebook exactly as it does in the repository.
+    """
+    cells: list[dict] = []
+
     for rel in EMBEDDED_MODULES:
         path = REPO_ROOT / rel
         if not path.exists():
             raise FileNotFoundError(f"cannot embed missing module: {path}")
-        payload[rel] = path.read_text(encoding="utf-8")
 
-    raw = json.dumps(payload).encode("utf-8")
-    blob = base64.b64encode(gzip.compress(raw, 9)).decode()
-    return "\n".join(
-        '    "' + blob[i : i + 96] + '"' for i in range(0, len(blob), 96)
-    )
+        source = path.read_text(encoding="utf-8").rstrip("\n")
+        target = f"{SRC_DIR}/{rel}"
+        cells.append(code(f"%%writefile {target}\n{source}"))
+
+    return cells
 
 
 def build() -> dict:
@@ -107,39 +124,48 @@ assert LANGUAGE in ("hi", "ne")
 print(f"training Model {'H (Hindi)' if LANGUAGE == 'hi' else 'L (Nepali)'}")
 """))
 
-    cells.append(markdown("""
-## 2. Unpack the project code
+    cells.append(markdown(f"""
+## 2. The project code
 
-The `lma` package is embedded in this notebook rather than cloned: the GitHub
-Classroom repository is private, so an unauthenticated clone from Kaggle fails.
-The SHA-256 of each module is printed so it can be matched against the committed
-source.
+The `lma` package travels inside this notebook rather than being cloned: the
+GitHub Classroom repository is private, so an unauthenticated `git clone` from
+Kaggle fails.
+
+The cells below hold the model and training code exactly as committed - the
+Transformer, the batching, and the training loop - written to `{SRC_DIR}` and
+imported from there. They are plain readable Python rather than an encoded blob,
+so everything this notebook runs can be read here.
 """))
 
     cells.append(code(f"""
-import base64
-import gzip
-import hashlib
-import json
 import sys
 from pathlib import Path
 
-EMBEDDED_SOURCE = (
-{_embedded_source()}
-)
+SRC = Path("{SRC_DIR}")
+for package in ("lma", "lma/model", "lma/train"):
+    (SRC / package).mkdir(parents=True, exist_ok=True)
 
-SRC = Path("/kaggle/working/src")
-modules = json.loads(gzip.decompress(base64.b64decode(EMBEDDED_SOURCE)))
+if str(SRC) not in sys.path:
+    sys.path.insert(0, str(SRC))
 
-for rel, text in modules.items():
-    path = SRC / rel
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(text, encoding="utf-8")
+print(f"module directory ready: {{SRC}}")
+"""))
+
+    cells.extend(_module_cells())
+
+    cells.append(code(f"""
+# Confirm every module landed, and that the package imports.
+import hashlib
+
+for rel in {EMBEDDED_MODULES!r}:
+    text = (SRC / rel).read_text(encoding="utf-8")
     digest = hashlib.sha256(text.encode()).hexdigest()[:12]
     print(f"  {{rel:32s}} {{len(text):>6,}} bytes  sha256:{{digest}}")
 
-sys.path.insert(0, str(SRC))
-print(f"\\nunpacked {{len(modules)}} modules")
+from lma.model import ModelConfig, TransformerLM
+from lma.train import TokenBinaryDataset, TrainConfig, Trainer
+
+print("imports OK")
 """))
 
     cells.append(markdown("""
@@ -434,8 +460,13 @@ def main() -> int:
         if cell["cell_type"] != "code":
             continue
         source = "".join(cell["source"])
+        # Strip IPython magics and shell escapes before parsing: they are valid
+        # in a notebook but not in plain Python.
         stripped = "\n".join(
-            "" if line.lstrip().startswith("!") else line for line in source.split("\n")
+            ""
+            if line.lstrip().startswith(("!", "%%", "%"))
+            else line
+            for line in source.split("\n")
         )
         try:
             ast.parse(stripped)
