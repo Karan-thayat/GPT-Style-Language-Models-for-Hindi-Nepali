@@ -108,6 +108,20 @@ def build_optimizer(model: nn.Module, cfg: TrainConfig) -> torch.optim.AdamW:
     )
 
 
+def _as_byte_tensor(state) -> torch.Tensor:
+    """Coerce a saved RNG state into the CPU uint8 tensor torch requires.
+
+    ``torch.set_rng_state`` and ``torch.cuda.set_rng_state_all`` accept only a
+    ByteTensor on CPU, and raise ``TypeError: RNG state must be a
+    torch.ByteTensor`` otherwise. A state that has been through
+    ``torch.save``/``torch.load`` - especially across torch versions or between
+    hosts - does not always come back in that exact form.
+    """
+    if not isinstance(state, torch.Tensor):
+        state = torch.tensor(state, dtype=torch.uint8)
+    return state.cpu().to(torch.uint8)
+
+
 @dataclass
 class TrainState:
     """Everything needed to resume a run mid-flight."""
@@ -253,12 +267,40 @@ class Trainer:
             wall_seconds=payload.get("wall_seconds", 0.0),
         )
 
+        # Restoring RNG state makes a resumed run follow the same trajectory as an
+        # uninterrupted one. It is a fidelity improvement, not a correctness
+        # requirement: the model, optimizer, and step above are what actually
+        # continue the run. So every restore below is best-effort - a checkpoint
+        # written under a different torch version or GPU count can carry states
+        # this build will not accept, and refusing to resume over that would
+        # throw away a valid checkpoint for no benefit.
         if payload.get("train_sampler_rng") is not None:
-            self.train_data.set_rng_state(payload["train_sampler_rng"])
+            try:
+                self.train_data.set_rng_state(payload["train_sampler_rng"])
+            except (ValueError, KeyError, TypeError) as error:
+                print(f"  note: sampler RNG state not restored ({error})")
+
         if payload.get("torch_rng") is not None:
-            torch.set_rng_state(payload["torch_rng"].cpu().to(torch.uint8))
+            try:
+                torch.set_rng_state(_as_byte_tensor(payload["torch_rng"]))
+            except (RuntimeError, TypeError) as error:
+                print(f"  note: CPU RNG state not restored ({error})")
+
         if payload.get("cuda_rng") and torch.cuda.is_available():
-            torch.cuda.set_rng_state_all(payload["cuda_rng"])
+            try:
+                states = [_as_byte_tensor(state) for state in payload["cuda_rng"]]
+                # set_rng_state_all expects exactly one state per visible device;
+                # a checkpoint from a host with a different GPU count would
+                # otherwise raise deep inside the CUDA lazy-init callback.
+                if len(states) == torch.cuda.device_count():
+                    torch.cuda.set_rng_state_all(states)
+                else:
+                    print(
+                        f"  note: CUDA RNG state not restored "
+                        f"({len(states)} saved, {torch.cuda.device_count()} device(s) here)"
+                    )
+            except (RuntimeError, TypeError) as error:
+                print(f"  note: CUDA RNG state not restored ({error})")
 
     def find_resume_point(self) -> Path | None:
         """Latest checkpoint in the output directory, if any."""
