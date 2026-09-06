@@ -9,8 +9,7 @@ SyntaxError on the first run.
 
 from __future__ import annotations
 
-import base64
-import gzip
+import itertools
 import json
 from pathlib import Path
 
@@ -41,13 +40,28 @@ def _lines(text: str) -> list[str]:
     return [p + "\n" for p in parts[:-1]] + [parts[-1]]
 
 
+#: Incrementing counter for cell ids. nbformat 4.5+ expects every cell to carry
+#: one, and warns (soon: errors) when they are missing.
+_CELL_COUNTER = itertools.count()
+
+
+def _cell_id() -> str:
+    return f"cell{next(_CELL_COUNTER):03d}"
+
+
 def markdown(text: str) -> dict:
-    return {"cell_type": "markdown", "metadata": {}, "source": _lines(text)}
+    return {
+        "cell_type": "markdown",
+        "id": _cell_id(),
+        "metadata": {},
+        "source": _lines(text),
+    }
 
 
 def code(text: str) -> dict:
     return {
         "cell_type": "code",
+        "id": _cell_id(),
         "execution_count": None,
         "metadata": {},
         "outputs": [],
@@ -73,14 +87,35 @@ def _module_cells() -> list[dict]:
     """
     cells: list[dict] = []
 
+    empty: list[str] = []
+
     for rel in EMBEDDED_MODULES:
         path = REPO_ROOT / rel
         if not path.exists():
             raise FileNotFoundError(f"cannot embed missing module: {path}")
 
         source = path.read_text(encoding="utf-8").rstrip("\n")
-        target = f"{SRC_DIR}/{rel}"
-        cells.append(code(f"%%writefile {target}\n{source}"))
+
+        if not source.strip():
+            # IPython rejects `%%writefile` when the cell body is empty
+            # ("UsageError: %%writefile is a cell magic, but the cell body is
+            # empty"), and a package's __init__.py legitimately has no content.
+            # Collect these and create them with touch() instead.
+            empty.append(rel)
+            continue
+
+        cells.append(code(f"%%writefile {SRC_DIR}/{rel}\n{source}"))
+
+    if empty:
+        lines = [
+            "# Empty package markers. These cannot use %%writefile, which errors on",
+            "# an empty cell body, so they are created directly.",
+        ]
+        lines += [f'(SRC / "{rel}").touch()' for rel in empty]
+        lines.append("")
+        lines.append(f'print("created {len(empty)} empty package marker(s)")')
+        # Must run before the modules that import through them.
+        cells.insert(0, code("\n".join(lines)))
 
     return cells
 
