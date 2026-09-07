@@ -271,16 +271,36 @@ def check_constraints(checklist: Checklist) -> None:
     # No pretrained models or HuggingFace Transformer classes anywhere in the code.
     banned = ("transformers", "AutoTokenizer", "AutoModel", "from_pretrained")
     offenders: list[str] = []
+
+    # Parse rather than grep. A textual scan cannot tell a real import from the
+    # same name written inside a string - the Phase 2 checker holds the literal
+    # "nn.Transformer" precisely in order to search for it, and a grep flags that
+    # as a violation. Walking the AST looks only at code that actually executes.
+    import ast
+
     for path in list(REPO_ROOT.glob("lma/**/*.py")) + list(REPO_ROOT.glob("scripts/*.py")):
-        text = path.read_text(encoding="utf-8")
-        for token in banned:
-            # Only flag real usage, not prose in comments and docstrings explaining
-            # that these are deliberately not used.
-            for line in text.splitlines():
-                stripped = line.strip()
-                if token in line and not stripped.startswith("#") and "no pretrained" not in line.lower():
-                    if f"import {token}" in line or f"{token}(" in line or f"{token}." in line:
-                        offenders.append(f"{path.relative_to(REPO_ROOT)}: {stripped[:60]}")
+        try:
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+        except SyntaxError:
+            continue
+
+        for node in ast.walk(tree):
+            names: list[str] = []
+            if isinstance(node, ast.Import):
+                names = [alias.name for alias in node.names]
+            elif isinstance(node, ast.ImportFrom):
+                names = [node.module or ""] + [alias.name for alias in node.names]
+            elif isinstance(node, ast.Attribute):
+                names = [node.attr]
+            elif isinstance(node, ast.Name):
+                names = [node.id]
+
+            for name in names:
+                for token in banned:
+                    if name == token or name.startswith(f"{token}."):
+                        offenders.append(
+                            f"{path.relative_to(REPO_ROOT)}:{node.lineno}: {name}"
+                        )
     checklist.add("No pretrained models / HF Transformer classes", not offenders,
                   f"{offenders[:3]}" if offenders else "")
 
