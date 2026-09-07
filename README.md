@@ -343,9 +343,24 @@ LMA-Individual-Project/
 ├── Phase1-Manual/         5.7 GB   the manually collected sources (>=20% requirement)
 │   ├── hindi/            bulk JSONL, wikipedia.txt, scraped/, ocr/
 │   └── nepali/           bulk JSONL, scraped/
-└── Phase1-Sources/       11.6 GB   mirrors of the public corpora, for convenience only
-    ├── indiccorp.txt                 (AI4Bharat IndicCorp, Hindi)
-    └── nepali_corpus_full.parquet    (public Nepali corpus)
+├── Phase1-Sources/       11.6 GB   mirrors of the public corpora, for convenience only
+│   ├── indiccorp.txt                 (AI4Bharat IndicCorp, Hindi)
+│   └── nepali_corpus_full.parquet    (public Nepali corpus)
+└── Phase2-Checkpoints/    590 MB   pretrained models, step 12,000
+    ├── hindi/   checkpoint_best.pt   (Model H)
+    └── nepali/  checkpoint_best.pt   (Model L)
+```
+
+Each checkpoint loads with `torch.load(path, map_location="cpu")` and carries the
+model weights, optimizer state, step counter, and run configuration, so training
+can be resumed or the model rebuilt from either file:
+
+```python
+from lma.model import ModelConfig, TransformerLM
+
+payload = torch.load("checkpoint_best.pt", map_location="cpu")
+model = TransformerLM(ModelConfig.from_dict(payload["model_config"]))
+model.load_state_dict(payload["model"])
 ```
 
 `Phase1-Sources/` holds third-party public datasets under their own licences; they
@@ -362,8 +377,8 @@ provenance is recorded in `hindi/configs/sources.yaml` and
 | Hindi manual-collection sources | 1 | 1.31 GB | [`Phase1-Manual/hindi/`](https://drive.google.com/drive/folders/1ggiw-RzYTUgkXLhky2u73tObkw7MKbJT?usp=drive_link) |
 | Nepali manual-collection sources | 1 | 4.36 GB | [`Phase1-Manual/nepali/`](https://drive.google.com/drive/folders/1ggiw-RzYTUgkXLhky2u73tObkw7MKbJT?usp=drive_link) |
 | Public source corpora (optional) | 1 | 11.56 GB | [`Phase1-Sources/`](https://drive.google.com/drive/folders/1ggiw-RzYTUgkXLhky2u73tObkw7MKbJT?usp=drive_link) |
-| Model H pretrained checkpoint | 2 | 295 MB | _add link_ |
-| Model L pretrained checkpoint | 2 | 295 MB | _add link_ |
+| Model H pretrained checkpoint | 2 | 295 MB | [`Phase2-Checkpoints/hindi/`](https://drive.google.com/drive/folders/1YymXv5SGVEQbEtiJTiNZs8Wae7JfpZmk?usp=drive_link) |
+| Model L pretrained checkpoint | 2 | 295 MB | [`Phase2-Checkpoints/nepali/`](https://drive.google.com/drive/folders/1YymXv5SGVEQbEtiJTiNZs8Wae7JfpZmk?usp=drive_link) |
 | Model H / L finetuned checkpoints | 3 | — | _Phase 3_ |
 
 The Phase 2 checkpoints are the `checkpoint_best.pt` files written at step 12,000,
