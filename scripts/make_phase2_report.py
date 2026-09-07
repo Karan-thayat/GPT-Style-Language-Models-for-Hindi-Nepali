@@ -508,6 +508,17 @@ def build_report(artifacts: dict) -> str:
         "concentrates its mass is selecting a specific earlier token, not averaging "
         "over a neighbourhood.",
         "",
+        "**The heatmaps show something the tables cannot.** In the late layers of "
+        "both models, nearly every query position puts substantial mass on the very "
+        "first token, producing the bright left-hand column visible in the layer-11 "
+        "panels. This is the *attention sink* reported in the literature on trained "
+        "Transformers: softmax forces each row to sum to one, so a head with nothing "
+        "informative to attend to must still place its mass somewhere, and the first "
+        "position - visible from every query and carrying little content - becomes "
+        "the default. It inflates the mean attention distance in late layers, which "
+        "is worth knowing when reading those numbers: part of the rise from 7 to 21 "
+        "positions is heads genuinely reaching back, and part is this sink.",
+        "",
         "**Where the two models differ.** Model H has more long-range heads (48 "
         "against 42) and fewer local ones (10 against 15), and its late layers reach "
         "further - 21.3 positions at layer 10 against Nepali's 18.9. The natural "

@@ -188,7 +188,17 @@ Both models show the same three-stage structure, which is worth stating because 
 
 **Late layers (7-11) reach furthest.** Mean distance rises again to 18-21 positions while entropy stays low, which is the signature of content-based rather than positional attention: a head that looks far away *and* concentrates its mass is selecting a specific earlier token, not averaging over a neighbourhood.
 
+**The heatmaps show something the tables cannot.** In the late layers of both models, nearly every query position puts substantial mass on the very first token, producing the bright left-hand column visible in the layer-11 panels. This is the *attention sink* reported in the literature on trained Transformers: softmax forces each row to sum to one, so a head with nothing informative to attend to must still place its mass somewhere, and the first position - visible from every query and carrying little content - becomes the default. It inflates the mean attention distance in late layers, which is worth knowing when reading those numbers: part of the rise from 7 to 21 positions is heads genuinely reaching back, and part is this sink.
+
 **Where the two models differ.** Model H has more long-range heads (48 against 42) and fewer local ones (10 against 15), and its late layers reach further - 21.3 positions at layer 10 against Nepali's 18.9. The natural reading is that the model with more training data spent proportionally less of its capacity on local structure and more on long-range dependencies, having already learned the local patterns from a larger sample. This is consistent with the perplexity gap but does not prove the causal link: with one run per language, the difference could also reflect the ordinary variation between two training runs. A stronger claim would need several seeds per language, which the compute budget did not allow.
+
+![Model H attention heatmaps](figures/attention_heatmaps_hi.png)
+
+![Model H per-head statistics](figures/attention_summary_hi.png)
+
+![Model L attention heatmaps](figures/attention_heatmaps_ne.png)
+
+![Model L per-head statistics](figures/attention_summary_ne.png)
 
 ---
 

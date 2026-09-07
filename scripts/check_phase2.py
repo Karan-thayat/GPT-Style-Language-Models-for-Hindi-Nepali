@@ -181,8 +181,15 @@ def check_constraints(checklist: Checklist) -> None:
     readme = REPO_ROOT / "README.md"
     text = readme.read_text(encoding="utf-8") if readme.exists() else ""
     # The instructions require Drive links for the pretrained checkpoints.
-    has_links = bool(re.search(r"drive\.google\.com\S*\)", text)) and "checkpoint" in text.lower()
-    unfilled = text.count("_pending_") + text.count("_to be added_")
+    checkpoint_rows = re.findall(r"\|\s*Model [HL] pretrained checkpoint\s*\|[^\n]*", text)
+    has_links = bool(checkpoint_rows) and all(
+        "drive.google.com" in row for row in checkpoint_rows
+    )
+    # Count every placeholder form used in this README. Listing them explicitly
+    # rather than matching a pattern keeps the check honest: an unrecognised
+    # placeholder should fail loudly, not pass silently.
+    placeholders = ("_pending_", "_to be added_", "_add link_", "<paste")
+    unfilled = sum(text.count(marker) for marker in placeholders)
     checklist.add(
         "Checkpoint Drive links in README",
         has_links and unfilled == 0,
