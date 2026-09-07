@@ -402,13 +402,35 @@ def build_report(artifacts: dict) -> str:
         section_lm_metrics(artifacts),
         "",
         "Perplexity is `exp` of the mean cross-entropy. It is **not** comparable "
-        "between the two models on its own: a tokenizer that splits text into "
-        "fewer, longer pieces faces fewer prediction decisions per sentence and "
-        "scores better without modelling the language any better. Bits-per-byte "
-        "removes that advantage by expressing the same total loss per byte of the "
-        "underlying UTF-8 text, which is a property of the text rather than of the "
-        "segmentation, and is therefore the figure to use when comparing Model H "
-        "against Model L.",
+        "between the two models on its own: a tokenizer that packs more text into "
+        "each piece faces fewer prediction decisions per sentence, and its "
+        "per-token loss is spread over more characters. Bits-per-byte removes that "
+        "advantage by expressing the same total loss per byte of the underlying "
+        "UTF-8 text - a property of the text rather than of the segmentation.",
+        "",
+        "### The two metrics disagree, and the disagreement is the point",
+        "",
+        "Model H has the better perplexity (24.91 against 36.35) but the **worse** "
+        "bits-per-byte (0.5173 against 0.4856). This is not a contradiction; it is "
+        "exactly the effect bits-per-byte exists to expose.",
+        "",
+        "The cause is in the tokenizers. Each Nepali token carries **10.68 bytes** "
+        "of text against Hindi's **8.97** - 19% more. So a Nepali prediction is a "
+        "harder problem covering more ground: its per-token loss is higher (3.5933 "
+        "against 3.2152 nats), but divided across more bytes it comes out lower. "
+        "The arithmetic is direct: `BPB = cross-entropy / (bytes-per-token x ln 2)`, "
+        "which reproduces both reported figures to three decimal places.",
+        "",
+        "Which number should be believed depends on the question. **Per token**, "
+        "Model H predicts its language better, which is what perplexity says and "
+        "what the larger, cleaner Hindi corpus would predict. **Per byte of text**, "
+        "Model L compresses marginally better - a result that flatters Nepali's "
+        "tokenizer rather than its language model, since the same corpus that made "
+        "Nepali harder to model also gave it longer, more predictable pieces.",
+        "",
+        "The honest reading is that the two models are closer than the perplexity "
+        "gap suggests, and that neither metric alone settles the comparison. This is "
+        "the concrete reason the assignment asks for both.",
         "",
         "---",
         "",
@@ -459,6 +481,43 @@ def build_report(artifacts: dict) -> str:
         "attention mass.",
         "",
         section_attention(artifacts),
+        "",
+        "### What the heads learned",
+        "",
+        "Both models show the same three-stage structure, which is worth stating "
+        "because nothing in the architecture or the training objective asks for it - "
+        "it emerged from the data.",
+        "",
+        "**Early layers (0-2) attend broadly.** Entropy is highest here (about 3.0 "
+        "nats) and mean distance is 14-17 positions. These heads are not selecting "
+        "particular tokens; they are mixing information across the whole visible "
+        "context, which is what a representation still close to raw embeddings can "
+        "usefully do.",
+        "",
+        "**Middle layers (3-6) go local and sharp.** Mean distance collapses to "
+        "6.9-7.5 positions in Model H and 4.5-8.8 in Model L, while entropy falls to "
+        "its minimum (1.24 at layer 7 for Hindi, 1.27 at layer 6 for Nepali). These "
+        "are the positional heads that most decoder-only models learn early: they "
+        "attend to the previous token or two, and they are the mechanism behind local "
+        "syntactic agreement - in these languages, matching a verb to its subject or "
+        "a postposition to the noun it governs.",
+        "",
+        "**Late layers (7-11) reach furthest.** Mean distance rises again to 18-21 "
+        "positions while entropy stays low, which is the signature of content-based "
+        "rather than positional attention: a head that looks far away *and* "
+        "concentrates its mass is selecting a specific earlier token, not averaging "
+        "over a neighbourhood.",
+        "",
+        "**Where the two models differ.** Model H has more long-range heads (48 "
+        "against 42) and fewer local ones (10 against 15), and its late layers reach "
+        "further - 21.3 positions at layer 10 against Nepali's 18.9. The natural "
+        "reading is that the model with more training data spent proportionally less "
+        "of its capacity on local structure and more on long-range dependencies, "
+        "having already learned the local patterns from a larger sample. This is "
+        "consistent with the perplexity gap but does not prove the causal link: with "
+        "one run per language, the difference could also reflect the ordinary "
+        "variation between two training runs. A stronger claim would need several "
+        "seeds per language, which the compute budget did not allow.",
         "",
     ]
 
