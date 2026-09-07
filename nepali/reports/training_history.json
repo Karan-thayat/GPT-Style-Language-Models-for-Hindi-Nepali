@@ -1,0 +1,73 @@
+{
+ "step": 12000,
+ "tokens_seen": 590000000,
+ "best_val_loss": 3.5568,
+ "wall_seconds": 56412.0,
+ "train_config": {
+  "batch_size": 24,
+  "gradient_accumulation": 4,
+  "learning_rate": 0.0006,
+  "min_learning_rate": 6e-05,
+  "warmup_steps": 500,
+  "max_steps": 12000,
+  "weight_decay": 0.1,
+  "grad_clip": 1.0,
+  "seed": 20260812
+ },
+ "history": [
+  {
+   "step": 8000,
+   "val_loss": 3.638,
+   "val_perplexity": 38.01572918485793,
+   "tokens_seen": 393216000
+  },
+  {
+   "step": 8500,
+   "val_loss": 3.6198,
+   "val_perplexity": 37.33010105519082,
+   "tokens_seen": 417792000
+  },
+  {
+   "step": 9000,
+   "val_loss": 3.6075,
+   "val_perplexity": 36.87375310549487,
+   "tokens_seen": 442368000
+  },
+  {
+   "step": 9500,
+   "val_loss": 3.5933,
+   "val_perplexity": 36.35384588878043,
+   "tokens_seen": 466944000
+  },
+  {
+   "step": 10000,
+   "val_loss": 3.5835,
+   "val_perplexity": 35.99931822203597,
+   "tokens_seen": 491520000
+  },
+  {
+   "step": 10500,
+   "val_loss": 3.5749,
+   "val_perplexity": 35.69105153204146,
+   "tokens_seen": 516096000
+  },
+  {
+   "step": 11000,
+   "val_loss": 3.566,
+   "val_perplexity": 35.374810533302046,
+   "tokens_seen": 540672000
+  },
+  {
+   "step": 11500,
+   "val_loss": 3.5611,
+   "val_perplexity": 35.20189794350302,
+   "tokens_seen": 565248000
+  },
+  {
+   "step": 12000,
+   "val_loss": 3.5568,
+   "val_perplexity": 35.05085475792724,
+   "tokens_seen": 589824000
+  }
+ ]
+}

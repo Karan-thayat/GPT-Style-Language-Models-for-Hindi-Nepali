@@ -178,6 +178,28 @@ def plot_attention_heatmaps(
     import matplotlib.font_manager as font_manager
 
     available = {font.name for font in font_manager.fontManager.ttflist}
+
+    # Hosted notebook images often ship no Devanagari face at all, in which case
+    # every label renders as an empty box and the figure is useless. Fetch one
+    # and register it rather than producing an illegible plot.
+    if not any("Devanagari" in name for name in available):
+        try:
+            import urllib.request
+
+            url = (
+                "https://github.com/googlefonts/noto-fonts/raw/main/hinted/ttf/"
+                "NotoSansDevanagari/NotoSansDevanagari-Regular.ttf"
+            )
+            font_path = Path("/tmp/NotoSansDevanagari-Regular.ttf")
+            if not font_path.exists():
+                urllib.request.urlretrieve(url, font_path)
+            font_manager.fontManager.addfont(str(font_path))
+            available = {font.name for font in font_manager.fontManager.ttflist}
+            print(f"  installed Devanagari font for plot labels: {font_path.name}")
+        except Exception as error:
+            # Not fatal: the numbers are unaffected, only the tick labels.
+            print(f"  note: no Devanagari font available, labels may not render ({error})")
+
     indic_font = [
         name
         for name in (

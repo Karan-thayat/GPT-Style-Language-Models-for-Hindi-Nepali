@@ -1,0 +1,104 @@
+{
+ "language": "ne",
+ "checkpoint": "lma-phase2-ne-final/ne_model/checkpoint_best.pt",
+ "parameters": 24562944,
+ "training_step": 12000,
+ "tokens_seen": 590000000,
+ "model_config": {
+  "vocab_size": 8000,
+  "n_layer": 12,
+  "n_head": 6,
+  "n_embd": 384,
+  "n_inner": 1536,
+  "block_size": 512,
+  "dropout": 0.1,
+  "tie_weights": true,
+  "bias": true
+ },
+ "language_modeling": {
+  "cross_entropy": 3.5933,
+  "perplexity": 36.35,
+  "bits_per_byte": 0.4856,
+  "tokens": 1638400,
+  "bytes_per_token": 10.68
+ },
+ "generation": {
+  "greedy": {
+   "bleu": 0.0,
+   "chrf": 13.91,
+   "rouge_l": 3.94,
+   "repetition_rate": 0.607,
+   "distinct_1": 0.176,
+   "distinct_2": 0.323
+  },
+  "temperature_0.5": {
+   "bleu": 0.0,
+   "chrf": 17.65,
+   "rouge_l": 5.17,
+   "repetition_rate": 0.185,
+   "distinct_1": 0.356,
+   "distinct_2": 0.675
+  },
+  "temperature_1.0": {
+   "bleu": 0.0,
+   "chrf": 19.98,
+   "rouge_l": 3.94,
+   "repetition_rate": 0.0,
+   "distinct_1": 0.663,
+   "distinct_2": 0.983
+  },
+  "temperature_1.5": {
+   "bleu": 0.0,
+   "chrf": 20.76,
+   "rouge_l": 2.24,
+   "repetition_rate": 0.0,
+   "distinct_1": 0.732,
+   "distinct_2": 0.998
+  }
+ },
+ "samples": {
+  "greedy": [
+   "मा पुगे। 2007 सालतिर उनी दरबारमा प्रवेश गरे। 2007 सालतिर उनी दरबारमा प्रवेश गरे। 2007 सालतिर उनी दरबारमा प्रवेश गरे।",
+   "बेरसम्म पनि हातखुट्टामा हात राखेर हातखुट्टामा हात राखेर हातखुट्टामा हात राखेर हातखुट्टामा हात राखेर"
+  ],
+  "temperature_1.0": [
+   "मा पुगे। तत्कालीन राजा राजेन्द्रमहाराजा त्रिभुवनका समकालीन नेता र आफ्नो परिवारलाई सम्मान गरी आफ्नो जिम्मेवारीबाट हटाए।",
+   "क·पसका कथित सामन्तहरूले लालपुर्जा व्यक्त गरे तर तिनले राजलु घोडालाई भण्डार पारेर सयौं रुपैयाँ जेलमा अङ्गभङ्ग गर्न थाले।"
+  ]
+ },
+ "attention": {
+  "layer_mean_entropy": [
+   2.958,
+   2.911,
+   2.458,
+   2.19,
+   2.264,
+   1.713,
+   1.271,
+   1.432,
+   2.057,
+   1.63,
+   1.443,
+   2.406
+  ],
+  "layer_mean_distance": [
+   14.8,
+   16.67,
+   13.92,
+   5.71,
+   8.83,
+   4.48,
+   5.73,
+   11.22,
+   13.0,
+   18.44,
+   18.89,
+   15.0
+  ],
+  "head_groups": {
+   "local": 15,
+   "long_range": 42,
+   "diffuse": 15
+  }
+ }
+}
