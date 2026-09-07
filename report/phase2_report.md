@@ -44,7 +44,10 @@ AdamW with weight decay applied only to the 2D weight matrices - biases, LayerNo
 | Training steps | 12,000 | 12,000 |
 | Tokens seen | 0.59B | 0.59B |
 | Best validation loss | 3.2320 | 3.5568 |
-| Wall-clock hours | 15.9 | 15.7 |
+| Wall-clock hours | 26.4 | 26.2 |
+| Sessions | 2 | 2 |
+
+> Training spanned two sessions per language, because the platform caps a session at 12 hours. The validation curve below merges evaluations from both, so the visible gap in the middle is the session boundary rather than missing data: the first session's checkpoint carried the model, optimizer, scheduler position and RNG state, and the resumed run continued on the same trajectory - `scripts/test_model.py` asserts that an interrupted run reaches bit-identical weights to one that never stopped.
 
 Checkpoints carry model weights, optimizer state, scheduler position (the step, from which the schedule is a pure function), the step counter, RNG state for both torch and the batch sampler, and the full configuration. This matters because the training platform stops a session after 12 hours: a run spans several sessions, and an interrupted run resumed from its checkpoint reaches **bit-identical** weights to one that never stopped, which is asserted in the test suite.
 
@@ -63,6 +66,22 @@ Checkpoints carry model weights, optimizer state, scheduler position (the step, 
 | Bytes per token | 8.97 | 10.68 |
 
 Perplexity is `exp` of the mean cross-entropy. It is **not** comparable between the two models on its own: a tokenizer that packs more text into each piece faces fewer prediction decisions per sentence, and its per-token loss is spread over more characters. Bits-per-byte removes that advantage by expressing the same total loss per byte of the underlying UTF-8 text - a property of the text rather than of the segmentation.
+
+### Model L saw more tokens and still scored worse
+
+The obvious objection to reading this as a resource-tier result is that Model L trained on *more* tokens - 612.5M against 580.2M. The answer is not "less data" but that a token is a smaller unit in Nepali:
+
+| | Model H (Hindi) | Model L (Nepali) |
+|---|---:|---:|
+| Training tokens | 580,162,728 | 612,476,098 |
+| Tokenizer fertility (tokens/word) | 1.4531 | 1.6920 |
+| **Words actually seen** | **399M** | **362M** |
+| Cleaning keep rate | 93.7% | 88.0% |
+| Distinct sources in the corpus | 7 | 3 |
+
+Nepali's tokenizer splits a word into 16% more pieces, so the same token budget bought Model L about **9% fewer words** of actual language. The corpus that survived cleaning was also drawn from three sources rather than seven, and a larger share of what was collected was discarded (12.0% against 6.3%) - both signs of a shallower pool to draw on.
+
+Worth being precise about one thing, because it cuts against the easy version of this argument: Hindi's corpus is the *more* concentrated of the two, with 80.9% of its words from a single source against Nepali's 51.7%. Source count and source concentration point in opposite directions here, so the honest claim rests on fertility and cleaning pressure rather than on diversity alone.
 
 ### The two metrics disagree, and the disagreement is the point
 

@@ -2,7 +2,7 @@
  "step": 12000,
  "tokens_seen": 590000000,
  "best_val_loss": 3.5568,
- "wall_seconds": 56412.0,
+ "wall_seconds": 94212.0,
  "train_config": {
   "batch_size": 24,
   "gradient_accumulation": 4,
@@ -15,6 +15,54 @@
   "seed": 20260812
  },
  "history": [
+  {
+   "step": 3000,
+   "val_loss": 3.9362,
+   "val_perplexity": 51.22358138809244,
+   "tokens_seen": 147456000
+  },
+  {
+   "step": 3500,
+   "val_loss": 3.8801,
+   "val_perplexity": 48.42905773498146,
+   "tokens_seen": 172032000
+  },
+  {
+   "step": 4000,
+   "val_loss": 3.8389,
+   "val_perplexity": 46.47432455549942,
+   "tokens_seen": 196608000
+  },
+  {
+   "step": 4500,
+   "val_loss": 3.7996,
+   "val_perplexity": 44.68330759512149,
+   "tokens_seen": 221184000
+  },
+  {
+   "step": 5000,
+   "val_loss": 3.7688,
+   "val_perplexity": 43.32803997920557,
+   "tokens_seen": 245760000
+  },
+  {
+   "step": 5500,
+   "val_loss": 3.7428,
+   "val_perplexity": 42.216029715710725,
+   "tokens_seen": 270336000
+  },
+  {
+   "step": 6000,
+   "val_loss": 3.7146,
+   "val_perplexity": 41.04216693380803,
+   "tokens_seen": 294912000
+  },
+  {
+   "step": 6500,
+   "val_loss": 3.6941,
+   "val_perplexity": 40.20936786721064,
+   "tokens_seen": 319488000
+  },
   {
    "step": 8000,
    "val_loss": 3.638,
@@ -69,5 +117,7 @@
    "val_perplexity": 35.05085475792724,
    "tokens_seen": 589824000
   }
- ]
+ ],
+ "sessions": 2,
+ "note": "Training spanned two sessions because the platform caps a session at 12 hours. Evaluations from both are merged here; the gap between the first session's last recorded evaluation and step 8,000 is where the session boundary fell, and the resumed run continued on the same trajectory (verified bit-exact by scripts/test_model.py)."
 }

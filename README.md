@@ -26,7 +26,7 @@ scratch in PyTorch, with separate datasets, tokenizers, vocabularies, and weight
 
 | Phase | Branch | Status |
 |---|---|---|
-| **Phase 1** — Data collection and tokenizer construction | `phase-1` | **Complete** — 20/20 checks, built on the `full` profile |
+| **Phase 1** — Data collection and tokenizer construction | `phase-1` | **Complete** — 27/27 checks, built on the `full` profile |
 | **Phase 2** — Model implementation, pretraining, evaluation | `phase-2` | **Complete** — both models trained to 12,000 steps and evaluated |
 | Phase 3 — Reasoning finetuning, attention analysis, final report | `phase-3` | Not started |
 
