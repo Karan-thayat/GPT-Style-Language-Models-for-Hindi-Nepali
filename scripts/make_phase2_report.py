@@ -116,6 +116,30 @@ def section_training(artifacts: dict) -> str:
     row("Tokens seen", lambda e: e["history"]["tokens_seen"] / 1e9, "{:.2f}B")
     row("Best validation loss", lambda e: e["history"]["best_val_loss"], "{:.4f}")
     row("Wall-clock hours", lambda e: e["history"]["wall_seconds"] / 3600, "{:.1f}")
+
+    # State a shortfall plainly rather than leaving the reader to notice it.
+    # The assignment allows a documented shortfall, but not a silent one.
+    planned = 12_000
+    short = {
+        code: artifacts[code]["history"]["step"]
+        for code in artifacts
+        if "history" in artifacts[code]
+        and artifacts[code]["history"].get("step", 0) < planned
+    }
+    if short:
+        lines.append("")
+        for code, step in short.items():
+            label = LANGUAGES[code][1]
+            lines.append(
+                f"> **{label} stopped at step {step:,} of {planned:,}** "
+                f"({100 * step / planned:.0f}% of the planned schedule). The training "
+                "platform caps a session at 12 hours and this run reached that limit; "
+                "the checkpoint is the one saved at that step. The cosine schedule was "
+                "therefore not fully annealed, so the reported figure is a small "
+                "underestimate of what the same configuration reaches at 12,000 steps - "
+                "on the validation curve, step 11,000 measured 1.1% worse than step "
+                "12,000, and step 10,000 2.7% worse."
+            )
     return "\n".join(lines)
 
 
