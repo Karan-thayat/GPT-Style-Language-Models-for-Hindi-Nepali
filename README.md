@@ -27,11 +27,15 @@ scratch in PyTorch, with separate datasets, tokenizers, vocabularies, and weight
 | Phase | Branch | Status |
 |---|---|---|
 | **Phase 1** — Data collection and tokenizer construction | `phase-1` | **Complete** — 20/20 checks, built on the `full` profile |
-| Phase 2 — Model implementation, pretraining, evaluation | `phase-2` | Not started |
+| **Phase 2** — Model implementation, pretraining, evaluation | `phase-2` | **Complete** — both models trained to 12,000 steps and evaluated |
 | Phase 3 — Reasoning finetuning, attention analysis, final report | `phase-3` | Not started |
 
 **Phase 1 report:** [`report/phase1_report.md`](report/phase1_report.md) — all
 dataset statistics, tokenizer metrics, tables, and figures.
+
+**Phase 2 report:** [`report/phase2_report.md`](report/phase2_report.md) —
+architecture, training curves, perplexity/BPB, generation quality across four
+decoding settings, and the attention analysis.
 
 Both corpora were built end to end on the `full` profile and both exceed the
 ~500M-token target:
@@ -45,6 +49,26 @@ The manual share is measured **in training tokens**, as the assignment specifies
 Manually collected prose tokenizes at a different rate to downloaded web text, so
 the token share and the word share differ — Hindi is 21.6% manual by token and
 19.1% by word.
+
+### Phase 2 results
+
+Two decoder-only Transformers, implemented from primitive PyTorch layers and
+pretrained independently. Identical architecture, so any difference reflects the
+data rather than model capacity.
+
+| | Model H (Hindi) | Model L (Nepali) |
+|---|---:|---:|
+| Trainable parameters | 24,562,944 | 24,562,944 |
+| Training steps | 12,000 | 12,000 |
+| Tokens seen | 0.59B | 0.59B |
+| **Test perplexity** | **24.91** | 36.35 |
+| **Bits-per-byte** | 0.5173 | **0.4856** |
+| Bytes per token | 8.97 | 10.68 |
+
+The two metrics disagree, and that is informative rather than contradictory:
+Model H predicts better *per token*, while Model L compresses marginally better
+*per byte* because its tokenizer packs 19% more text into each piece. Full
+discussion in [`report/phase2_report.md`](report/phase2_report.md).
 
 Verify the state of any checkout with:
 
@@ -338,9 +362,20 @@ provenance is recorded in `hindi/configs/sources.yaml` and
 | Hindi manual-collection sources | 1 | 1.31 GB | [`Phase1-Manual/hindi/`](https://drive.google.com/drive/folders/1ggiw-RzYTUgkXLhky2u73tObkw7MKbJT?usp=drive_link) |
 | Nepali manual-collection sources | 1 | 4.36 GB | [`Phase1-Manual/nepali/`](https://drive.google.com/drive/folders/1ggiw-RzYTUgkXLhky2u73tObkw7MKbJT?usp=drive_link) |
 | Public source corpora (optional) | 1 | 11.56 GB | [`Phase1-Sources/`](https://drive.google.com/drive/folders/1ggiw-RzYTUgkXLhky2u73tObkw7MKbJT?usp=drive_link) |
-| Model H pretrained checkpoint | 2 | — | _pending_ |
-| Model L pretrained checkpoint | 2 | — | _pending_ |
-| Model H / L finetuned checkpoints | 3 | — | _pending_ |
+| Model H pretrained checkpoint | 2 | 295 MB | _add link_ |
+| Model L pretrained checkpoint | 2 | 295 MB | _add link_ |
+| Model H / L finetuned checkpoints | 3 | — | _Phase 3_ |
+
+The Phase 2 checkpoints are the `checkpoint_best.pt` files written at step 12,000,
+each carrying model weights, optimizer state, the step counter, and the run
+configuration, so training can be resumed or the model rebuilt from either one.
+
+**No external dashboard is used.** The submission instructions state that graders
+will not open Weights & Biases or similar services, so every training curve,
+table, and figure lives in this repository: metric histories in
+`<language>/reports/training_history.json`, the loss curves in
+`report/figures/phase2_loss_curves.png`, and the analysis in
+`report/phase2_report.md`.
 
 Tokenizer models and vocabularies are **in the repository**, not on Drive:
 [`hindi/tokenizer/`](hindi/tokenizer/) and [`nepali/tokenizer/`](nepali/tokenizer/).
