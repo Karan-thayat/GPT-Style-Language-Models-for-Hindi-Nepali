@@ -50,10 +50,17 @@ class TrainConfig:
         return self.batch_size * self.gradient_accumulation
 
     def to_dict(self) -> dict:
+        """Serialize for checkpointing and for the run's config record."""
         return asdict(self)
 
     @classmethod
     def from_dict(cls, data: dict) -> "TrainConfig":
+        """Rebuild from a checkpoint payload, ignoring unknown keys.
+
+        Unknown keys are dropped rather than raising, so a checkpoint written by
+        an earlier version - before a field existed, or after one was removed -
+        still loads instead of stranding a trained model.
+        """
         fields = set(cls.__dataclass_fields__)
         return cls(**{k: v for k, v in data.items() if k in fields})
 
