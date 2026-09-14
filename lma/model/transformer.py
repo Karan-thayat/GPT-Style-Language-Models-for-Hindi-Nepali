@@ -172,7 +172,13 @@ class TransformerLM(nn.Module):
         self.config = config
 
         self.token_embedding = nn.Embedding(config.vocab_size, config.n_embd)
-        self.position_embedding = nn.Embedding(config.block_size, config.n_embd)
+        # The ablation omits the table entirely rather than zeroing it, so the
+        # parameters are genuinely absent from the model and from its count.
+        self.position_embedding = (
+            nn.Embedding(config.block_size, config.n_embd)
+            if config.use_positional_embeddings
+            else None
+        )
         self.embed_dropout = nn.Dropout(config.dropout)
 
         self.blocks = nn.ModuleList(DecoderBlock(config) for _ in range(config.n_layer))
@@ -246,13 +252,15 @@ class TransformerLM(nn.Module):
                 "learned positional embeddings exist only for block_size positions"
             )
 
-        pos = torch.arange(T, device=idx.device)
-
         # Token identity plus position. Addition, not concatenation: the two
         # signals share the same d dimensions, and the model learns to separate
         # them. Without the positional term the model is permutation invariant -
-        # attention alone cannot distinguish "dog bites man" from "man bites dog".
-        x = self.token_embedding(idx) + self.position_embedding(pos)
+        # attention alone cannot distinguish "dog bites man" from "man bites dog",
+        # which is exactly what the ablation is meant to demonstrate.
+        x = self.token_embedding(idx)
+        if self.position_embedding is not None:
+            pos = torch.arange(T, device=idx.device)
+            x = x + self.position_embedding(pos)
         x = self.embed_dropout(x)
 
         attentions = [] if return_attention else None

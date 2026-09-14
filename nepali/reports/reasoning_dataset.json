@@ -1,0 +1,109 @@
+{
+  "by_chain_length": {
+    "2": 4349,
+    "3": 8010,
+    "4": 7641
+  },
+  "by_dimension": {
+    "age": 4929,
+    "height": 5033,
+    "speed": 5057,
+    "wealth": 4981
+  },
+  "by_hops": {
+    "1": 4349,
+    "2": 8010,
+    "3": 7641
+  },
+  "by_split": {
+    "test": 2000,
+    "train": 16000,
+    "validation": 2000
+  },
+  "config": {
+    "chain_lengths": [
+      2,
+      3,
+      4
+    ],
+    "held_out_entity_fraction": 0.2,
+    "language": "ne",
+    "seed": 20260812,
+    "splits": {
+      "test": 0.1,
+      "train": 0.8,
+      "validation": 0.1
+    },
+    "total_examples": 20000
+  },
+  "entity_pools": {
+    "distractor_count": 7,
+    "evaluation_only_distractors": [
+      "कुमार",
+      "कृष्ण",
+      "निर्मला",
+      "प्रकाश",
+      "बिकास",
+      "महेश",
+      "सुरेश"
+    ],
+    "shared": [
+      "अर्जुन",
+      "आनन्द",
+      "कमला",
+      "किरण",
+      "गणेश",
+      "गोपाल",
+      "थापा",
+      "दुर्गा",
+      "भीम",
+      "माया",
+      "मोहन",
+      "यादव",
+      "रमेश",
+      "राम",
+      "रेखा",
+      "लक्ष्मी",
+      "विकास",
+      "विजय",
+      "विनोद",
+      "विष्णु",
+      "शर्मा",
+      "शिव",
+      "श्याम",
+      "सन्तोष",
+      "सीता",
+      "हरि"
+    ],
+    "shared_count": 26
+  },
+  "files": {
+    "test": "ne_reasoning_test.jsonl",
+    "train": "ne_reasoning_train.jsonl",
+    "validation": "ne_reasoning_validation.jsonl"
+  },
+  "language": "ne",
+  "leakage_checks": {
+    "chain_signature_overlap": 0,
+    "distractor_answers_in_eval": 0,
+    "distractors_in_training_examples": [],
+    "duplicate_prompts": 0,
+    "eval_answers_not_sampled_as_train_answer": [],
+    "eval_chain_signatures": 3139,
+    "prompt_overlap_train_eval": 0,
+    "train_chain_signatures": 11264
+  },
+  "output_dir": "nepali/data/reasoning",
+  "template_variety": {
+    "chain_lengths": [
+      2,
+      3,
+      4
+    ],
+    "dimensions": 4,
+    "entity_pool": 33,
+    "question_polarities": 2
+  },
+  "total_examples": 20000,
+  "unique_prompts": 20000
+}

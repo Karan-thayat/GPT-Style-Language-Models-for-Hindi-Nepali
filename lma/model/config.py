@@ -36,6 +36,12 @@ class ModelConfig:
             Saves `vocab_size * n_embd` parameters, which at these sizes is a
             fifth of the whole budget.
         bias: Whether linear layers carry bias terms.
+        use_positional_embeddings: Whether position is injected at all. Setting
+            this to ``False`` is the assignment's optional ablation: self-attention
+            is permutation invariant, so without a positional signal the model
+            cannot distinguish orderings of the same tokens. Kept as a flag rather
+            than a separate class so the ablated model is the same code path, and
+            so a checkpoint records which variant produced it.
     """
 
     vocab_size: int
@@ -47,6 +53,7 @@ class ModelConfig:
     dropout: float = 0.1
     tie_weights: bool = True
     bias: bool = True
+    use_positional_embeddings: bool = True
 
     def __post_init__(self) -> None:
         if self.n_embd % self.n_head != 0:
@@ -79,7 +86,9 @@ class ModelConfig:
         b = 1 if self.bias else 0
 
         token_embedding = v * d
-        position_embedding = self.block_size * d
+        # The ablation removes the positional table entirely rather than zeroing
+        # it, so the parameter count reflects what is actually trained.
+        position_embedding = self.block_size * d if self.use_positional_embeddings else 0
 
         # Per block: four d x d projections (Q, K, V, O) and two feed-forward
         # matrices, plus two LayerNorms (weight and bias each).
