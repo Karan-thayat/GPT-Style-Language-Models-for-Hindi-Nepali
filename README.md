@@ -26,16 +26,25 @@ scratch in PyTorch, with separate datasets, tokenizers, vocabularies, and weight
 
 | Phase | Branch | Status |
 |---|---|---|
-| **Phase 1** — Data collection and tokenizer construction | `phase-1` | **Complete** — 27/27 checks, built on the `full` profile |
-| **Phase 2** — Model implementation, pretraining, evaluation | `phase-2` | **Complete** — both models trained to 12,000 steps and evaluated |
-| Phase 3 — Reasoning finetuning, attention analysis, final report | `phase-3` | Not started |
+| **Phase 1** — Data collection and tokenizer construction | `phase-1` | **Complete** — 20/20 checks, built on the `full` profile |
+| **Phase 2** — Model implementation, pretraining, evaluation | `phase-2` | **Complete** — 27/27 checks, both models pretrained to 12,000 steps |
+| **Phase 3** — Reasoning finetuning, attention analysis, final report | `phase-3` | **Complete** — 33/33 checks, both models finetuned and evaluated |
 
-**Phase 1 report:** [`report/phase1_report.md`](report/phase1_report.md) — all
-dataset statistics, tokenizer metrics, tables, and figures.
+**Reports:** [`report/phase1_report.md`](report/phase1_report.md),
+[`report/phase2_report.md`](report/phase2_report.md),
+[`report/phase3_report.md`](report/phase3_report.md) — all dataset statistics,
+tokenizer metrics, loss curves, evaluation tables, attention heatmaps, and
+written analysis.
 
-**Phase 2 report:** [`report/phase2_report.md`](report/phase2_report.md) —
-architecture, training curves, perplexity/BPB, generation quality across four
-decoding settings, and the attention analysis.
+Verify any checkout with:
+
+```bash
+.venv/bin/python scripts/check_phase1.py     # 20/20
+.venv/bin/python scripts/check_phase2.py     # 27/27
+.venv/bin/python scripts/check_phase3.py     # 33/33
+.venv/bin/python scripts/test_model.py       # 56 Phase 2 assertions
+.venv/bin/python scripts/test_reasoning.py   # 48 Phase 3 assertions
+```
 
 Both corpora were built end to end on the `full` profile and both exceed the
 ~500M-token target:
@@ -49,26 +58,6 @@ The manual share is measured **in training tokens**, as the assignment specifies
 Manually collected prose tokenizes at a different rate to downloaded web text, so
 the token share and the word share differ — Hindi is 21.6% manual by token and
 19.1% by word.
-
-### Phase 2 results
-
-Two decoder-only Transformers, implemented from primitive PyTorch layers and
-pretrained independently. Identical architecture, so any difference reflects the
-data rather than model capacity.
-
-| | Model H (Hindi) | Model L (Nepali) |
-|---|---:|---:|
-| Trainable parameters | 24,562,944 | 24,562,944 |
-| Training steps | 12,000 | 12,000 |
-| Tokens seen | 0.59B | 0.59B |
-| **Test perplexity** | **24.91** | 36.35 |
-| **Bits-per-byte** | 0.5173 | **0.4856** |
-| Bytes per token | 8.97 | 10.68 |
-
-The two metrics disagree, and that is informative rather than contradictory:
-Model H predicts better *per token*, while Model L compresses marginally better
-*per byte* because its tokenizer packs 19% more text into each piece. Full
-discussion in [`report/phase2_report.md`](report/phase2_report.md).
 
 Verify the state of any checkout with:
 
@@ -343,24 +332,22 @@ LMA-Individual-Project/
 ├── Phase1-Manual/         5.7 GB   the manually collected sources (>=20% requirement)
 │   ├── hindi/            bulk JSONL, wikipedia.txt, scraped/, ocr/
 │   └── nepali/           bulk JSONL, scraped/
-├── Phase1-Sources/       11.6 GB   mirrors of the public corpora, for convenience only
-│   ├── indiccorp.txt                 (AI4Bharat IndicCorp, Hindi)
-│   └── nepali_corpus_full.parquet    (public Nepali corpus)
-└── Phase2-Checkpoints/    590 MB   pretrained models, step 12,000
-    ├── hindi/   checkpoint_best.pt   (Model H)
-    └── nepali/  checkpoint_best.pt   (Model L)
+└── Phase1-Sources/       11.6 GB   mirrors of the public corpora, for convenience only
+    ├── indiccorp.txt                 (AI4Bharat IndicCorp, Hindi)
+    └── nepali_corpus_full.parquet    (public Nepali corpus)
 ```
 
-Each checkpoint loads with `torch.load(path, map_location="cpu")` and carries the
-model weights, optimizer state, step counter, and run configuration, so training
-can be resumed or the model rebuilt from either file:
+The model checkpoints live in two separate top-level folders, each linked in the
+table below:
 
-```python
-from lma.model import ModelConfig, TransformerLM
+```
+Phase2-Checkpoints/     590 MB   the pretrained models behind every Phase 2 result
+├── hi_checkpoint_best.pt          Model H, step 12,000, val loss 3.2320
+└── ne_checkpoint_best.pt          Model L, step 12,000, val loss 3.5568
 
-payload = torch.load("checkpoint_best.pt", map_location="cpu")
-model = TransformerLM(ModelConfig.from_dict(payload["model_config"]))
-model.load_state_dict(payload["model"])
+Phase3-Finetuned/       590 MB   the reasoning-finetuned models
+├── hi_finetuned_best.pt           Model H, answer-span val loss 0.0046
+└── ne_finetuned_best.pt           Model L, answer-span val loss 0.0024
 ```
 
 `Phase1-Sources/` holds third-party public datasets under their own licences; they
@@ -377,20 +364,9 @@ provenance is recorded in `hindi/configs/sources.yaml` and
 | Hindi manual-collection sources | 1 | 1.31 GB | [`Phase1-Manual/hindi/`](https://drive.google.com/drive/folders/1ggiw-RzYTUgkXLhky2u73tObkw7MKbJT?usp=drive_link) |
 | Nepali manual-collection sources | 1 | 4.36 GB | [`Phase1-Manual/nepali/`](https://drive.google.com/drive/folders/1ggiw-RzYTUgkXLhky2u73tObkw7MKbJT?usp=drive_link) |
 | Public source corpora (optional) | 1 | 11.56 GB | [`Phase1-Sources/`](https://drive.google.com/drive/folders/1ggiw-RzYTUgkXLhky2u73tObkw7MKbJT?usp=drive_link) |
-| Model H pretrained checkpoint | 2 | 295 MB | [`Phase2-Checkpoints/hindi/`](https://drive.google.com/drive/folders/1YymXv5SGVEQbEtiJTiNZs8Wae7JfpZmk?usp=drive_link) |
-| Model L pretrained checkpoint | 2 | 295 MB | [`Phase2-Checkpoints/nepali/`](https://drive.google.com/drive/folders/1YymXv5SGVEQbEtiJTiNZs8Wae7JfpZmk?usp=drive_link) |
-| Model H / L finetuned checkpoints | 3 | — | _Phase 3_ |
-
-The Phase 2 checkpoints are the `checkpoint_best.pt` files written at step 12,000,
-each carrying model weights, optimizer state, the step counter, and the run
-configuration, so training can be resumed or the model rebuilt from either one.
-
-**No external dashboard is used.** The submission instructions state that graders
-will not open Weights & Biases or similar services, so every training curve,
-table, and figure lives in this repository: metric histories in
-`<language>/reports/training_history.json`, the loss curves in
-`report/figures/phase2_loss_curves.png`, and the analysis in
-`report/phase2_report.md`.
+| Model H pretrained checkpoint | 2 | 295 MB | [`Phase2-Checkpoints/`](https://drive.google.com/drive/folders/1YymXv5SGVEQbEtiJTiNZs8Wae7JfpZmk?usp=drive_link) |
+| Model L pretrained checkpoint | 2 | 295 MB | [`Phase2-Checkpoints/`](https://drive.google.com/drive/folders/1YymXv5SGVEQbEtiJTiNZs8Wae7JfpZmk?usp=drive_link) |
+| Model H / L finetuned checkpoints | 3 | 590 MB | [`Phase3-Finetuned/`](https://drive.google.com/drive/folders/1DWhTSk7cBxHHVn0_c7qcagOVYeVsIwWI?usp=drive_link) |
 
 Tokenizer models and vocabularies are **in the repository**, not on Drive:
 [`hindi/tokenizer/`](hindi/tokenizer/) and [`nepali/tokenizer/`](nepali/tokenizer/).

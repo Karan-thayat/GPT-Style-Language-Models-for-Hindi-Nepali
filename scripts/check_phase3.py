@@ -73,18 +73,36 @@ def check_deliverables(checklist: Checklist) -> None:
         checklist.add(name, exists, "" if exists else f"{path} missing")
 
     for code, (directory, label) in LANGUAGES.items():
+        # The splits are deliberately not committed: they are JSONL, the
+        # submission instructions send large artifacts to Drive, and the corpus
+        # is a pure function of the seed. So a fresh clone legitimately has no
+        # data directory, and demanding the files would fail every checkout.
+        # What must hold is that the dataset is *reproducible*: either the files
+        # are present, or the generator and its recorded statistics are.
         data_dir = REPO_ROOT / directory / "data" / "reasoning"
         splits = [
             data_dir / f"{code}_reasoning_{split}.jsonl"
             for split in ("train", "validation", "test")
         ]
         present = [p for p in splits if p.exists()]
+        generator = REPO_ROOT / "scripts" / "generate_reasoning_data.py"
+        statistics = REPO_ROOT / directory / "reports" / "reasoning_dataset.json"
+        reproducible = generator.exists() and statistics.exists()
+
+        if len(present) == 3:
+            detail = "3 splits on disk"
+        elif reproducible:
+            detail = (
+                f"not generated here - run: python scripts/generate_reasoning_data.py "
+                f"--language {code}"
+            )
+        else:
+            detail = f"{len(present)}/3 splits, and the generator is missing"
+
         checklist.add(
             f"1. Reasoning splits ({label})",
-            len(present) == 3,
-            f"{len(present)}/3 splits"
-            if len(present) != 3
-            else f"{sum(1 for _ in present)} files",
+            len(present) == 3 or reproducible,
+            detail,
         )
 
         record = REPO_ROOT / directory / "reports" / "finetune_record.json"

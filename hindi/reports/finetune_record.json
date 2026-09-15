@@ -1,0 +1,134 @@
+{
+ "language": "hi",
+ "pretrained_checkpoint": "/kaggle/input/datasets/karanthayat/lma-phase2-hi-final/hi_model/checkpoint_best.pt",
+ "pretrained_step": 12000,
+ "parameters": 24562944,
+ "model_config": {
+  "vocab_size": 8000,
+  "n_layer": 12,
+  "n_head": 6,
+  "n_embd": 384,
+  "n_inner": 1536,
+  "block_size": 512,
+  "dropout": 0.1,
+  "tie_weights": true,
+  "bias": true,
+  "use_positional_embeddings": true
+ },
+ "finetune_config": {
+  "batch_size": 32,
+  "learning_rate": 5e-05,
+  "min_learning_rate": 5e-06,
+  "warmup_steps": 100,
+  "epochs": 3,
+  "weight_decay": 0.1,
+  "beta1": 0.9,
+  "beta2": 0.95,
+  "grad_clip": 1.0,
+  "eval_interval": 200,
+  "log_interval": 50,
+  "seed": 20260812,
+  "amp": true,
+  "max_length": 64
+ },
+ "steps": 1500,
+ "epochs": 3,
+ "best_val_loss": 0.004580568256122726,
+ "wall_seconds": 113.4,
+ "train_data": {
+  "examples": 16000,
+  "skipped": 0,
+  "max_length": 64,
+  "sequence_tokens": {
+   "min": 16,
+   "max": 28,
+   "mean": 22.445875
+  },
+  "answer_tokens": {
+   "min": 1,
+   "max": 1,
+   "single_token_fraction": 1.0
+  }
+ },
+ "val_data": {
+  "examples": 2000,
+  "skipped": 0,
+  "max_length": 64,
+  "sequence_tokens": {
+   "min": 16,
+   "max": 28,
+   "mean": 22.609
+  },
+  "answer_tokens": {
+   "min": 1,
+   "max": 1,
+   "single_token_fraction": 1.0
+  }
+ },
+ "history": [
+  {
+   "val_loss": 0.16584580808523156,
+   "val_perplexity": 1.1803910809296252,
+   "batches": 63,
+   "step": 200,
+   "epoch": 0,
+   "lr": 4.944705784117474e-05
+  },
+  {
+   "val_loss": 0.13798550457235367,
+   "val_perplexity": 1.1479589099982541,
+   "batches": 63,
+   "step": 400,
+   "epoch": 0,
+   "lr": 4.5122643965237416e-05
+  },
+  {
+   "val_loss": 0.057790617295910444,
+   "val_perplexity": 1.0594931329468447,
+   "batches": 63,
+   "step": 600,
+   "epoch": 1,
+   "lr": 3.730784932443998e-05
+  },
+  {
+   "val_loss": 0.03352311025891039,
+   "val_perplexity": 1.0340913415687754,
+   "batches": 63,
+   "step": 800,
+   "epoch": 1,
+   "lr": 2.755048983955897e-05
+  },
+  {
+   "val_loss": 0.015364201148114508,
+   "val_perplexity": 1.0154828372910472,
+   "batches": 63,
+   "step": 1000,
+   "epoch": 1,
+   "lr": 1.7783130222736063e-05
+  },
+  {
+   "val_loss": 0.007094453369814252,
+   "val_perplexity": 1.0071196786219636,
+   "batches": 63,
+   "step": 1200,
+   "epoch": 2,
+   "lr": 9.94031583488758e-06
+  },
+  {
+   "val_loss": 0.004580568256122726,
+   "val_perplexity": 1.004591075095203,
+   "batches": 63,
+   "step": 1400,
+   "epoch": 2,
+   "lr": 5.575412251333201e-06
+  },
+  {
+   "val_loss": 0.00526285750998391,
+   "val_perplexity": 1.0052767306713821,
+   "batches": 63,
+   "step": 1500,
+   "epoch": 3,
+   "final": true
+  }
+ ]
+}
