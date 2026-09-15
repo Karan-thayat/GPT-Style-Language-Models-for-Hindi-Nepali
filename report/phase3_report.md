@@ -412,14 +412,20 @@ Both plausibly contribute to Model L's higher Phase 2 perplexity. Neither limite
 
 ---
 
-## 6. Bonus ablation: implemented, not trained
+## 6. Bonus ablation: no positional embeddings
 
-The optional ablation - retraining one language without positional embeddings - is
-implemented but was not run. `ModelConfig(use_positional_embeddings=False)` removes
-the positional table entirely (196,608 parameters), and `scripts/test_reasoning.py`
-verifies the ablated model is permutation-invariant where the standard model is not.
-Training it would repeat a full pretraining run of roughly 16 GPU-hours, which the
-remaining compute budget did not allow, so no ablation results are claimed.
+The optional ablation retrains one language with the positional-embedding table
+removed (`ModelConfig(use_positional_embeddings=False)`, 196,608 fewer parameters)
+and every other setting unchanged. `scripts/test_reasoning.py` pins down what that
+removes: one ablated attention layer sees the tokens before a position as an
+unordered set, but two layers can recover their order, because under the causal
+mask each position's state summarizes a prefix of a different length. The ablation
+therefore measures how much of the positional signal a 12-layer stack recovers on
+its own - it does not test a model that is blind to word order.
+
+The run uses `notebooks/bonus_nopos_pretrain.ipynb` and
+`notebooks/bonus_nopos_evaluate.ipynb`. No ablation results are claimed until it
+completes.
 
 ---
 

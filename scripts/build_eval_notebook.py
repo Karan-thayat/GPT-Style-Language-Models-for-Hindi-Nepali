@@ -16,6 +16,9 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent
 OUTPUT = REPO_ROOT / "notebooks" / "phase2_evaluate.ipynb"
 
+#: Where the bonus ablation evaluation notebook is written by ``--ablation``.
+ABLATION_OUTPUT = REPO_ROOT / "notebooks" / "bonus_nopos_evaluate.ipynb"
+
 #: The evaluation code, shipped inside the notebook. The GitHub Classroom
 #: repository is private, so Kaggle cannot clone it.
 EMBEDDED_MODULES = [
@@ -457,10 +460,99 @@ python scripts/make_phase2_report.py
     }
 
 
+#: The ablation evaluation is the Phase 2 evaluation with exactly these edits, so
+#: the ablated and standard models are measured identically. Each edit must apply
+#: the stated number of times: one that silently failed to apply could evaluate
+#: the standard checkpoint, or overwrite its results, under the ablation's name.
+ABLATION_EDITS = (
+    ("# Phase 2: evaluate a trained model\n\n"
+     "Runs the whole of section 2.3 for one language and writes a JSON result file:",
+     "# Bonus ablation: evaluate the model trained without positional embeddings\n\n"
+     "Runs exactly the Phase 2 evaluation (section 2.3) on the ablated checkpoint - the\n"
+     "same held-out text, prompts, decoding settings and 64-token attention sample as\n"
+     "the standard model's evaluation, so the two sets of numbers compare directly -\n"
+     "and writes a JSON result file:", 1),
+    ("the checkpoint dataset for this\n  language, e.g. `lma-phase2-hi-checkpoint`.",
+     "the ablation checkpoint dataset,\n  e.g. `lma-bonus-hi-nopos-checkpoint`. Only the `<language>_nopos` folder is\n"
+     "  accepted, so the standard model's checkpoint cannot be evaluated by mistake.", 1),
+    ("# Prefer the best checkpoint (lowest validation loss) over the latest one.\n"
+     "checkpoints = sorted(INPUT.rglob(\"checkpoint_best.pt\")) or sorted(\n"
+     "    INPUT.rglob(\"checkpoint_latest.pt\")\n)",
+     "# Prefer the best checkpoint (lowest validation loss) over the latest one, and\n"
+     "# accept only the ablation run's own folder.\n"
+     "RUN_DIR = f\"{LANGUAGE}_nopos\"\n"
+     "checkpoints = sorted(\n"
+     "    p for p in INPUT.rglob(\"checkpoint_best.pt\") if p.parent.name == RUN_DIR\n"
+     ") or sorted(p for p in INPUT.rglob(\"checkpoint_latest.pt\") if p.parent.name == RUN_DIR)", 1),
+    ("lma-phase2-{LANGUAGE}-checkpoint", "lma-bonus-{LANGUAGE}-nopos-checkpoint", 1),
+    ("model.load_state_dict(payload[\"model\"])\nmodel.to(device).eval()",
+     "model.load_state_dict(payload[\"model\"])\nmodel.to(device).eval()\n"
+     "assert model.position_embedding is None, "
+     "\"this checkpoint has positional embeddings - it is not the ablation\"", 1),
+    ("f\"attention_heatmaps_{LANGUAGE}.png\"", "f\"attention_heatmaps_{LANGUAGE}_nopos.png\"", 2),
+    ("f\"attention_summary_{LANGUAGE}.png\"", "f\"attention_summary_{LANGUAGE}_nopos.png\"", 2),
+    ("title=f\"Attention patterns - {label}\",",
+     "title=f\"Attention patterns - {label}, no positional embeddings\",", 1),
+    ("title=f\"Per-head statistics - {label}\",",
+     "title=f\"Per-head statistics - {label}, no positional embeddings\",", 1),
+    ("    \"language\": LANGUAGE,\n    \"checkpoint\": str(CHECKPOINT),",
+     "    \"language\": LANGUAGE,\n    \"variant\": \"no_positional_embeddings\",\n"
+     "    \"checkpoint\": str(CHECKPOINT),", 1),
+    ("out_path = WORK / f\"phase2_evaluation_{LANGUAGE}.json\"",
+     "out_path = WORK / f\"bonus_nopos_evaluation_{LANGUAGE}.json\"", 1),
+    ("for history in INPUT.rglob(\"training_history.json\"):\n"
+     "    target = WORK / f\"training_history_{LANGUAGE}.json\"",
+     "for history in (p for p in INPUT.rglob(\"training_history.json\") if p.parent.name == RUN_DIR):\n"
+     "    target = WORK / f\"training_history_{LANGUAGE}_nopos.json\"", 1),
+    ("Everything the Phase 2 report needs, in one JSON file plus the figures. Save this\n"
+     "notebook's output as a dataset (or download the JSON) and place it at\n"
+     "`<language>/reports/phase2_evaluation.json` in the repository, then run\n"
+     "`scripts/make_phase2_report.py`.",
+     "Everything the ablation comparison needs. Download these from the Output tab and\n"
+     "drop them anywhere in the project folder:\n\n"
+     "* `bonus_nopos_evaluation_<language>.json`\n"
+     "* `training_history_<language>_nopos.json`\n"
+     "* `figures/attention_heatmaps_<language>_nopos.png`\n"
+     "* `figures/attention_summary_<language>_nopos.png`", 1),
+    ("Download `phase2_evaluation_<lang>.json` and `training_history_<lang>.json` from\n"
+     "the Output tab, put them in `<language>/reports/` (renaming the evaluation file\n"
+     "to `phase2_evaluation.json`), copy the two figures into `report/figures/`, and\n"
+     "run:\n\n```bash\npython scripts/make_phase2_report.py\n```",
+     "The comparison against the standard model is generated from these files by\n"
+     "`scripts/make_ablation_report.py`.", 1),
+)
+
+
+def ablate(notebook: dict) -> dict:
+    """Turn the Phase 2 evaluation notebook into the ablation evaluation."""
+    applied = [0] * len(ABLATION_EDITS)
+    for cell in notebook["cells"]:
+        text = "".join(cell["source"])
+        if "EMBEDDED_SOURCE = (" in text:
+            continue  # the embedded modules are the committed code, never edited here
+        for index, (old, new, _) in enumerate(ABLATION_EDITS):
+            if old in text:
+                applied[index] += text.count(old)
+                text = text.replace(old, new)
+        cell["source"] = _lines(text)
+    for (old, _, expected), count in zip(ABLATION_EDITS, applied):
+        if count != expected:
+            raise RuntimeError(f"ablation edit applied {count} time(s), expected {expected}: {old[:60]!r}")
+    return notebook
+
+
 def main() -> int:
-    notebook = build()
-    OUTPUT.parent.mkdir(parents=True, exist_ok=True)
-    OUTPUT.write_text(json.dumps(notebook, indent=1))
+    import argparse
+
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--ablation", action="store_true",
+                        help="write the no-positional-embeddings bonus notebook instead")
+    args = parser.parse_args()
+
+    notebook = ablate(build()) if args.ablation else build()
+    output = ABLATION_OUTPUT if args.ablation else OUTPUT
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(json.dumps(notebook, indent=1))
 
     import ast
 
@@ -478,8 +570,8 @@ def main() -> int:
             failures += 1
             print(f"  cell {index}: {exc}")
 
-    size_kb = OUTPUT.stat().st_size / 1024
-    print(f"wrote {OUTPUT.relative_to(REPO_ROOT)} ({len(notebook['cells'])} cells, {size_kb:.0f} KB)")
+    size_kb = output.stat().st_size / 1024
+    print(f"wrote {output.relative_to(REPO_ROOT)} ({len(notebook['cells'])} cells, {size_kb:.0f} KB)")
     print("all code cells parse" if not failures else f"{failures} cell(s) failed to parse")
     return 1 if failures else 0
 

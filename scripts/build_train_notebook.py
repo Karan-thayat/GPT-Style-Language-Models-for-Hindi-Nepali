@@ -16,6 +16,9 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent
 OUTPUT = REPO_ROOT / "notebooks" / "phase2_pretrain.ipynb"
 
+#: Where the bonus ablation notebook is written by ``--ablation``.
+ABLATION_OUTPUT = REPO_ROOT / "notebooks" / "bonus_nopos_pretrain.ipynb"
+
 #: Where the modules are written inside the Kaggle session.
 SRC_DIR = "/kaggle/working/src"
 
@@ -483,10 +486,76 @@ print(f"\\nSave as a Kaggle Dataset named lma-phase2-{LANGUAGE}-checkpoint")
     }
 
 
+#: The ablation notebook is the pretraining notebook with exactly these edits, so
+#: the two runs differ in one setting only. Each edit must apply the stated number
+#: of times ("any" meaning at least once): an edit that silently fails to apply
+#: would train the standard model under the ablation's name and waste a session.
+ABLATION_EDITS = (
+    ("# Phase 2: pretrain one language model\n\n"
+     "Trains a 24.6M-parameter decoder-only Transformer on one language's corpus.\n"
+     "Run it **once per language** by changing `LANGUAGE` below.",
+     "# Bonus ablation: pretrain without positional embeddings\n\n"
+     "The Phase 2 pretraining run with one change: the positional-embedding table is\n"
+     "removed (`use_positional_embeddings=False`, 196,608 fewer parameters). Data,\n"
+     "the rest of the architecture, optimizer, learning-rate schedule, seed and step\n"
+     "budget all match `phase2_pretrain.ipynb`, so any difference from the standard\n"
+     "model is attributable to position information. Run it for **one** language;\n"
+     "Hindi is the suggested choice.\n\n"
+     "Checkpoints go to `<language>_nopos` and the resume dataset is named\n"
+     "`lma-bonus-<language>-nopos-checkpoint`, so this run can never resume from, or\n"
+     "be mistaken for, the standard model's `<language>_model` checkpoints.", 1),
+    ("## 4. Build the model\n\n"
+     "Identical architecture for both languages, so any difference measured in Phase 2\n"
+     "reflects data scale rather than capacity. Only the vocabulary differs, and here\n"
+     "it happens to be 8,000 for both.",
+     "## 4. Build the ablated model\n\n"
+     "The standard Phase 2 architecture with the positional-embedding table removed.\n"
+     "The assertion stops the run if the flag did not take effect, because training\n"
+     "the standard model by mistake would cost a whole session.", 1),
+    ("    tie_weights=True,\n)\n\nmodel = TransformerLM(model_config)",
+     "    tie_weights=True,\n"
+     "    use_positional_embeddings=False,   # the ablation\n)\n\n"
+     "model = TransformerLM(model_config)\n"
+     "assert model.position_embedding is None, \"ablation flag did not take effect\"", 1),
+    ('OUT = Path("/kaggle/working") / f"{LANGUAGE}_model"',
+     'OUT = Path("/kaggle/working") / f"{LANGUAGE}_nopos"', 1),
+    ("lma-phase2-{LANGUAGE}-checkpoint", "lma-bonus-{LANGUAGE}-nopos-checkpoint", "any"),
+    ("lma-phase2-<language>-checkpoint", "lma-bonus-<language>-nopos-checkpoint", "any"),
+    ("Validation loss - Model {'H' if LANGUAGE == 'hi' else 'L'}",
+     "Validation loss - Model {'H' if LANGUAGE == 'hi' else 'L'}, no positional embeddings", 1),
+)
+
+
+def ablate(notebook: dict) -> dict:
+    """Turn the pretraining notebook into the no-positional-embeddings ablation."""
+    applied = [0] * len(ABLATION_EDITS)
+    for cell in notebook["cells"]:
+        text = "".join(cell["source"])
+        if text.startswith("%%writefile"):
+            continue  # embedded modules are the committed code, never edited here
+        for index, (old, new, _) in enumerate(ABLATION_EDITS):
+            if old in text:
+                applied[index] += text.count(old)
+                text = text.replace(old, new)
+        cell["source"] = _lines(text)
+    for (old, _, expected), count in zip(ABLATION_EDITS, applied):
+        if (expected == "any" and count == 0) or (expected != "any" and count != expected):
+            raise RuntimeError(f"ablation edit applied {count} time(s), expected {expected}: {old[:60]!r}")
+    return notebook
+
+
 def main() -> int:
-    notebook = build()
-    OUTPUT.parent.mkdir(parents=True, exist_ok=True)
-    OUTPUT.write_text(json.dumps(notebook, indent=1))
+    import argparse
+
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--ablation", action="store_true",
+                        help="write the no-positional-embeddings bonus notebook instead")
+    args = parser.parse_args()
+
+    notebook = ablate(build()) if args.ablation else build()
+    output = ABLATION_OUTPUT if args.ablation else OUTPUT
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(json.dumps(notebook, indent=1))
 
     import ast
 
@@ -509,8 +578,8 @@ def main() -> int:
             failures += 1
             print(f"  cell {index}: {exc}")
 
-    size_kb = OUTPUT.stat().st_size / 1024
-    print(f"wrote {OUTPUT.relative_to(REPO_ROOT)} ({len(notebook['cells'])} cells, {size_kb:.0f} KB)")
+    size_kb = output.stat().st_size / 1024
+    print(f"wrote {output.relative_to(REPO_ROOT)} ({len(notebook['cells'])} cells, {size_kb:.0f} KB)")
     print("all code cells parse" if not failures else f"{failures} cell(s) failed to parse")
     return 1 if failures else 0
 

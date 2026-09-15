@@ -37,11 +37,14 @@ class ModelConfig:
             fifth of the whole budget.
         bias: Whether linear layers carry bias terms.
         use_positional_embeddings: Whether position is injected at all. Setting
-            this to ``False`` is the assignment's optional ablation: self-attention
-            is permutation invariant, so without a positional signal the model
-            cannot distinguish orderings of the same tokens. Kept as a flag rather
-            than a separate class so the ablated model is the same code path, and
-            so a checkpoint records which variant produced it.
+            this to ``False`` is the assignment's optional ablation. Without it, a
+            single attention layer sees the tokens before each position as an
+            unordered set and cannot tell their orderings apart. The causal mask
+            still leaks order into deeper layers - each position's state
+            summarizes a prefix of a different length - so how much of the lost
+            signal a deep stack recovers is what the ablation measures. Kept as a
+            flag so the ablated model is the same code path, and so a checkpoint
+            records which variant produced it.
     """
 
     vocab_size: int

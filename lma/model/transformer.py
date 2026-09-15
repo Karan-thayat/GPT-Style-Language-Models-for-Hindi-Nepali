@@ -254,9 +254,11 @@ class TransformerLM(nn.Module):
 
         # Token identity plus position. Addition, not concatenation: the two
         # signals share the same d dimensions, and the model learns to separate
-        # them. Without the positional term the model is permutation invariant -
-        # attention alone cannot distinguish "dog bites man" from "man bites dog",
-        # which is exactly what the ablation is meant to demonstrate.
+        # them. Without the positional term, one attention layer sees the tokens
+        # before each position as an unordered set, so on its own it cannot tell
+        # "dog bites man" from "man bites dog". The causal mask leaks some order
+        # into deeper layers, and the positional-embedding ablation measures how
+        # much of that lost signal a deep stack recovers.
         x = self.token_embedding(idx)
         if self.position_embedding is not None:
             pos = torch.arange(T, device=idx.device)

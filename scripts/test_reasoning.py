@@ -494,28 +494,35 @@ def test_ablation() -> None:
         model.num_parameters() == ablated.n_params,
     )
 
-    # Without positions the model is permutation invariant, which is the whole
-    # point of the ablation. Position 0 sees only itself under causal masking, so
-    # reordering later tokens must leave its logits untouched.
-    ids = torch.randint(0, 8000, (1, 8))
-    reordered = torch.cat([ids[:, :1], ids[:, 1:].flip(1)], dim=1)
-    with torch.no_grad():
-        check(
-            "ablated model is permutation invariant at position 0",
-            torch.allclose(model(ids)["logits"][0, 0], model(reordered)["logits"][0, 0],
-                           atol=1e-6),
-        )
+    # What removing positions actually breaks, stated precisely. Reordering the
+    # tokens BEFORE the last position, while keeping the last token fixed:
+    #   * one ablated layer sees those tokens as an unordered set, so the last
+    #     position's logits cannot change;
+    #   * a second layer can tell - each earlier position summarizes a prefix of a
+    #     different length, so the causal mask leaks order into deeper layers;
+    #   * the standard model sees order directly through its positional table.
+    # "The ablated model is permutation invariant" is therefore true of one layer
+    # and false of a deep stack, which is why the ablation has something to measure.
+    torch.manual_seed(0)
+    ids = torch.randperm(8000)[:8].unsqueeze(0)
+    reordered = torch.cat([ids[:, :-1].flip(1), ids[:, -1:]], dim=1)
 
-    with torch.no_grad():
-        standard_model = TransformerLM(standard).eval()
-        check(
-            "the standard model is not permutation invariant",
-            not torch.allclose(
-                standard_model(ids)["logits"][0, -1],
-                standard_model(ids[:, torch.randperm(8)])["logits"][0, -1],
-                atol=1e-4,
-            ),
-        )
+    def last_logits_change(config: ModelConfig) -> float:
+        torch.manual_seed(0)
+        small = TransformerLM(config).eval()
+        with torch.no_grad():
+            return float((small(ids)["logits"][0, -1] - small(reordered)["logits"][0, -1]).abs().max())
+
+    tiny = dict(vocab_size=8000, n_head=2, n_embd=64, block_size=16, dropout=0.0)
+    one_layer = last_logits_change(ModelConfig(n_layer=1, use_positional_embeddings=False, **tiny))
+    two_layer = last_logits_change(ModelConfig(n_layer=2, use_positional_embeddings=False, **tiny))
+    positional = last_logits_change(ModelConfig(n_layer=1, use_positional_embeddings=True, **tiny))
+    check("one ablated layer cannot see the order of earlier tokens", one_layer < 1e-5,
+          f"max change {one_layer:.1e}")
+    check("two ablated layers can - the causal mask leaks order", two_layer > 1e-4,
+          f"max change {two_layer:.1e}")
+    check("the standard model sees order directly", positional > 1e-4,
+          f"max change {positional:.1e}")
 
     # A Phase 2 checkpoint predates the flag and must still load.
     legacy = ModelConfig.from_dict(
