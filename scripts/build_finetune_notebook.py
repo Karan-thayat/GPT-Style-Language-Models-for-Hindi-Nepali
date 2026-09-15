@@ -48,6 +48,7 @@ EMBEDDED_MODULES = [
     "lma/reasoning/generate.py",
     "lma/reasoning/finetune.py",
     "lma/reasoning/evaluate.py",
+    "lma/reasoning/plots.py",
     "lma/data/__init__.py",
     "lma/data/splits.py",
 ]
@@ -372,9 +373,17 @@ state = finetuner.train(resume=True)
 ## 8. Score the finetuned model
 
 Same examples, same decoding, same match rule - the only thing that changed is
-the weights.
+the weights. The model scored is the checkpoint with the **lowest validation
+loss**, reloaded from disk, not whatever happens to be in memory after the final
+step: `finetuned_best.pt` is the file that gets published, so the reported
+numbers must describe exactly that file.
 """))
     cells.append(code("""
+del model
+model, best_payload = load_pretrained(OUT / "finetuned_best.pt", device)
+print(f"scoring finetuned_best.pt (step {best_payload['step']:,}, "
+      f"val loss {best_payload['best_val_loss']:.4f})")
+
 after = score_examples(model, test_rows, tokenizer, device=device)
 comparison = compare_pretrained_finetuned(before, after)
 margins = above_chance(after, baseline)
@@ -406,18 +415,26 @@ for prediction in after["predictions"][:8]:
     cells.append(markdown("""
 ## 9. Attention: pretrained against finetuned
 
-The same comparative-reasoning prompt through both models, so any difference in
-where the heads look is attributable to finetuning.
+The same comparative-reasoning prompts through both models, so any difference in
+where the heads look is attributable to finetuning. Head statistics are averaged
+over 200 test prompts before heads are classified - one prompt is a sample of
+one - and the answer-attention measurement asks directly how much the position
+that predicts the answer attends to the correct entity versus the others. The
+heatmaps show one prompt, as an illustration of those averages.
 """))
     cells.append(code("""
-from lma.eval import attention_statistics, classify_heads, plot_attention_heatmaps, plot_head_summary
+from lma.eval import plot_attention_heatmaps, plot_head_summary
+from lma.reasoning.evaluate import answer_attention_by_layer, averaged_attention_statistics
+from lma.reasoning.plots import plot_answer_attention
 from lma.tokenizer.train_tokenizer import BOS_ID
 
 FIGURES = WORK / "figures"
 FIGURES.mkdir(parents=True, exist_ok=True)
+LANGUAGE_NAME = "Hindi" if LANGUAGE == "hi" else "Nepali"
+ATTENTION_PROMPTS = 200
 
 prompt = test_rows[0]["prompt"]
-print("prompt:", prompt, "\\n")
+print("illustration prompt:", prompt, "\\n")
 
 # The pretrained weights were overwritten in place by finetuning, so reload them
 # for the comparison rather than trusting the in-memory model.
@@ -425,33 +442,48 @@ pretrained_model, _ = load_pretrained(CHECKPOINT, device)
 
 attention_summary = {}
 for name, this_model in (("pretrained", pretrained_model), ("finetuned", model)):
+    averaged = averaged_attention_statistics(
+        this_model, test_rows, tokenizer, device=device, limit=ATTENTION_PROMPTS
+    )
+    answer = answer_attention_by_layer(
+        this_model, test_rows, tokenizer, device=device, limit=ATTENTION_PROMPTS
+    )
+    attention_summary[name] = {
+        "layer_mean_entropy": averaged["layer_mean_entropy"],
+        "layer_mean_distance": averaged["layer_mean_distance"],
+        "normalized_entropy": averaged["normalized_entropy"],
+        "mean_distance": averaged["mean_distance"],
+        "head_groups": averaged["head_groups"],
+        "prompts": averaged["prompts"],
+        "answer_attention": answer,
+    }
+    print(f"{name:11s} head types: {averaged['head_groups']}  "
+          f"(averaged over {averaged['prompts']} prompts)")
+
     ids = torch.tensor([[BOS_ID, *tokenizer.encode(prompt, out_type=int)]], dtype=torch.long)
     with torch.no_grad():
         attentions = this_model(ids.to(device), return_attention=True)["attentions"]
-
-    stats_a = attention_statistics(attentions)
-    groups = classify_heads(stats_a)
-    attention_summary[name] = {
-        "layer_mean_entropy": stats_a["layer_mean_entropy"],
-        "layer_mean_distance": stats_a["layer_mean_distance"],
-        "normalized_entropy": stats_a["normalized_entropy"],
-        "mean_distance": stats_a["mean_distance"],
-        "head_groups": groups["counts"],
-    }
-    print(f"{name:11s} head types: {groups['counts']}")
-
     pieces = [tokenizer.id_to_piece(int(t)) for t in ids[0].tolist()]
-    heads = list(range(min(3, this_model.config.n_head)))
+    last = this_model.config.n_layer - 1
     plot_attention_heatmaps(
         attentions, pieces,
-        layers=[0, this_model.config.n_layer - 1], heads=heads,
+        layers=[0, last], heads=list(range(min(3, this_model.config.n_head))),
         out_path=FIGURES / f"reasoning_attention_{name}_{LANGUAGE}.png",
-        title=f"{LANGUAGE} reasoning prompt - {name}",
+        title=f"{LANGUAGE_NAME} reasoning prompt - {name} model (layers 0 and {last})",
     )
     plot_head_summary(
-        stats_a, FIGURES / f"reasoning_head_summary_{name}_{LANGUAGE}.png",
-        title=f"{LANGUAGE} per-head statistics - {name}",
+        averaged, FIGURES / f"reasoning_head_summary_{name}_{LANGUAGE}.png",
+        title=f"{LANGUAGE_NAME} per-head attention - {name} model, "
+              f"averaged over {averaged['prompts']} test prompts",
     )
+
+plot_answer_attention(
+    attention_summary["pretrained"]["answer_attention"],
+    attention_summary["finetuned"]["answer_attention"],
+    FIGURES / f"reasoning_answer_attention_{LANGUAGE}.png",
+    title=f"{LANGUAGE_NAME} - attention from the answer position, averaged over "
+          f"{attention_summary['finetuned']['answer_attention']['prompts']} test prompts",
+)
 
 print()
 print("layer  pretrained  finetuned   delta")
@@ -490,6 +522,10 @@ results = {
     "pretrained_checkpoint": str(CHECKPOINT),
     "finetuned_checkpoint": str(OUT / "finetuned_best.pt"),
     "pretrained_step": payload.get("step"),
+    "finetuned_step": best_payload.get("step"),
+    "finetuned_best_val_loss": best_payload.get("best_val_loss"),
+    "checkpoint_selection": "lowest answer-span validation loss (finetuned_best.pt)",
+    "attention_prompts": attention_summary["finetuned"]["prompts"],
     "parameters": model.num_parameters(),
     "model_config": model.config.to_dict(),
     "finetune_config": config.to_dict(),

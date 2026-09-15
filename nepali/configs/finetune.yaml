@@ -1,0 +1,42 @@
+# Phase 3 reasoning-finetuning configuration for nepali.
+#
+# These are the hyperparameters of the graded run, exactly as recorded in
+# nepali/reports/finetune_record.json. scripts/test_reasoning.py asserts that this
+# file and that record agree, so the documented configuration cannot silently
+# drift from the one that produced the reported results.
+
+finetune:
+  # Starting point and vocabulary. Both are fixed: finetuning begins from this
+  # language's own Phase 2 checkpoint and never changes its Phase 1 tokenizer.
+  start_checkpoint: Phase2-Checkpoints/nepali/checkpoint_best.pt   # Google Drive, see README
+  tokenizer: nepali/tokenizer/ne_unigram_8000.model
+
+  # Optimization. The peak rate is an order of magnitude below pretraining's
+  # 6e-4: the model arrives trained, and a large rate would overwrite the
+  # language knowledge the task depends on.
+  batch_size: 32
+  learning_rate: 5.0e-5
+  min_learning_rate: 5.0e-6
+  warmup_steps: 100
+  epochs: 3
+  weight_decay: 0.1          # 2D weight matrices only, as in pretraining
+  beta1: 0.9
+  beta2: 0.95
+  grad_clip: 1.0
+  amp: true
+  seed: 20260812
+
+  # Data handling. Examples longer than max_length are dropped, never truncated,
+  # because truncation would cut off the answer. Loss is on the answer span only.
+  max_length: 64
+
+  # Monitoring and checkpoint selection. The reported model is the checkpoint
+  # with the lowest answer-span validation loss (finetuned_best.pt).
+  eval_interval: 200
+  log_interval: 50
+
+data:
+  generator: scripts/generate_reasoning_data.py
+  total_examples: 20000
+  seed: 20260812
+  splits: {train: 0.8, validation: 0.1, test: 0.1}

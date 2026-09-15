@@ -26,9 +26,9 @@ scratch in PyTorch, with separate datasets, tokenizers, vocabularies, and weight
 
 | Phase | Branch | Status |
 |---|---|---|
-| **Phase 1** — Data collection and tokenizer construction | `phase-1` | **Complete** — 20/20 checks, built on the `full` profile |
+| **Phase 1** — Data collection and tokenizer construction | `phase-1` | **Complete** — 27/27 checks, built on the `full` profile |
 | **Phase 2** — Model implementation, pretraining, evaluation | `phase-2` | **Complete** — 27/27 checks, both models pretrained to 12,000 steps |
-| **Phase 3** — Reasoning finetuning, attention analysis, final report | `phase-3` | **Complete** — 33/33 checks, both models finetuned and evaluated |
+| **Phase 3** — Reasoning finetuning, attention analysis, final report | `phase-3` | **Complete** — 39/39 checks, both models finetuned and evaluated |
 
 **Reports:** [`report/phase1_report.md`](report/phase1_report.md),
 [`report/phase2_report.md`](report/phase2_report.md),
@@ -39,11 +39,13 @@ written analysis.
 Verify any checkout with:
 
 ```bash
-.venv/bin/python scripts/check_phase1.py     # 20/20
-.venv/bin/python scripts/check_phase2.py     # 27/27
-.venv/bin/python scripts/check_phase3.py     # 33/33
-.venv/bin/python scripts/test_model.py       # 56 Phase 2 assertions
-.venv/bin/python scripts/test_reasoning.py   # 48 Phase 3 assertions
+.venv/bin/python scripts/check_phase1.py            # 27/27 deliverables and constraints
+.venv/bin/python scripts/check_phase2.py            # 27/27
+.venv/bin/python scripts/check_phase3.py            # 39/39
+.venv/bin/python scripts/test_pipeline.py           # 164 Phase 1 component tests
+.venv/bin/python scripts/test_model.py              # 56 Phase 2 assertions
+.venv/bin/python scripts/test_reasoning.py          # 66 Phase 3 assertions
+.venv/bin/python scripts/validate_independence.py   # needs the processed corpora from Drive
 ```
 
 Both corpora were built end to end on the `full` profile and both exceed the
@@ -59,61 +61,66 @@ Manually collected prose tokenizes at a different rate to downloaded web text, s
 the token share and the word share differ — Hindi is 21.6% manual by token and
 19.1% by word.
 
-Verify the state of any checkout with:
-
-```bash
-.venv/bin/python scripts/test_pipeline.py          # 84 component assertions
-.venv/bin/python scripts/validate_independence.py  # corpus/tokenizer independence
-.venv/bin/python scripts/check_phase1.py           # deliverables and constraints
-```
-
 ---
 
 ## Repository layout
 
 ```
-├── lma/                          # Shared, language-agnostic implementation
-│   ├── data/
-│   │   ├── normalize.py          # Script-aware Unicode normalization (hi vs ne)
-│   │   ├── language_id.py        # Hindi-vs-Nepali discrimination (grammar-based)
-│   │   ├── clean.py              # Quality filters + MinHash/LSH deduplication
-│   │   ├── sources.py            # HF streaming, web scraping, local/OCR sources
-│   │   ├── ocr.py                # PDF/book OCR ingestion
-│   │   ├── checkpoint.py         # Resume state for long ingests
-│   │   └── splits.py             # Deterministic hash-based train/val/test splits
-│   ├── tokenizer/
-│   │   └── train_tokenizer.py    # SentencePiece training from scratch
-│   ├── stats/
-│   │   ├── corpus_stats.py       # Streaming corpus statistics
-│   │   ├── tokenizer_stats.py    # Fertility, unk/byte-fallback, vocab sweep
-│   │   └── plots.py              # All figures (computation-free)
+├── lma/                              # Shared, language-agnostic implementation
+│   ├── data/                         # Phase 1: collection, cleaning, language ID, splits
+│   │   ├── normalize.py              # Script-aware Unicode normalization (hi vs ne)
+│   │   ├── language_id.py            # Hindi-vs-Nepali discrimination (grammar-based)
+│   │   ├── clean.py                  # Quality filters + MinHash/LSH deduplication
+│   │   ├── sources.py                # HF streaming, web scraping, local/OCR sources
+│   │   ├── ocr.py                    # PDF/book OCR ingestion
+│   │   ├── checkpoint.py             # Resume state for long ingests
+│   │   └── splits.py                 # Deterministic hash-based train/val/test splits
+│   ├── tokenizer/train_tokenizer.py  # SentencePiece training from scratch
+│   ├── stats/                        # Corpus and tokenizer statistics, Phase 1 figures
+│   ├── model/                        # Phase 2: decoder-only Transformer from primitives
+│   │   ├── config.py                 # Hyperparameters + exact parameter count
+│   │   └── transformer.py            # Attention, blocks, tied LM head, generation
+│   ├── train/                        # Phase 2: token batching and the resumable trainer
+│   ├── eval/                         # Phase 2: perplexity/BPB, BLEU/chrF/ROUGE-L, attention
+│   ├── reasoning/                    # Phase 3
+│   │   ├── templates.py              # Devanagari surface forms per language
+│   │   ├── generate.py               # Seeded dataset generator with leakage control
+│   │   ├── finetune.py               # Answer-span finetuning, resumable
+│   │   ├── evaluate.py               # Exact match, error analysis, attention analysis
+│   │   └── plots.py                  # Phase 3 figures
 │   └── utils/logging_utils.py
 │
-├── hindi/                        # Model H — self-contained
-│   ├── configs/pipeline.yaml     # Cleaning, splits, tokenizer, run profiles
-│   ├── configs/sources.yaml      # Corpus source manifest
-│   ├── data/processed/           # bn_{train,validation,test}.jsonl
-│   ├── tokenizer/                # bn_*.model / bn_*.vocab
-│   ├── reports/                  # Per-stage JSON statistics
-│   └── logs/                     # Timestamped run logs
+├── hindi/                            # Model H — self-contained
+│   ├── configs/pipeline.yaml         # Cleaning, splits, tokenizer, run profiles
+│   ├── configs/sources.yaml          # Corpus source manifest
+│   ├── configs/model.yaml            # Phase 2 architecture and pretraining settings
+│   ├── configs/finetune.yaml         # Phase 3 finetuning hyperparameters
+│   ├── data/processed/               # hi_{train,validation,test}.jsonl (on Drive, not in git)
+│   ├── data/reasoning/               # hi_reasoning_*.jsonl (regenerated from the seed)
+│   ├── tokenizer/                    # hi_unigram_8000.model / .vocab
+│   └── reports/                      # JSON for every stage: corpus, tokenizer, training, evaluation
 │
-├── nepali/                       # Model L — self-contained, same structure
+├── nepali/                           # Model L — self-contained, same structure (ne_ prefix)
 │
-├── scripts/                      # Executable pipeline stages
-│   ├── test_pipeline.py          # Component self-tests (84 assertions)
-│   ├── build_corpus.py           # Collect -> normalize -> clean -> dedup -> split
-│   ├── train_tokenizer.py        # Vocabulary sweep + final tokenizer + evaluation
-│   ├── tokenize_corpus.py        # Exact token counts (+ optional Phase 2 .bin)
-│   ├── run_ocr.py                # OCR scanned PDFs into the corpus
-│   ├── validate_independence.py  # Proves the two models share no data/vocabulary
-│   ├── check_phase1.py           # Deliverable and constraint checklist
-│   └── make_report.py            # Figures + Markdown report
+├── scripts/
+│   ├── build_corpus.py  train_tokenizer.py  tokenize_corpus.py  run_ocr.py
+│   ├── evaluate_model.py             # Phase 2 evaluation of one checkpoint
+│   ├── generate_reasoning_data.py    # Phase 3 dataset
+│   ├── finetune_reasoning.py         # Phase 3 finetuning
+│   ├── evaluate_reasoning.py         # Phase 3 scoring and attention analysis
+│   ├── make_report.py  make_phase2_report.py  make_phase3_report.py
+│   ├── build_*_notebook.py           # Generate the Kaggle notebooks from committed code
+│   ├── validate_independence.py      # Proves the two models share no data or vocabulary
+│   ├── check_phase1.py  check_phase2.py  check_phase3.py
+│   └── test_pipeline.py  test_model.py  test_reasoning.py
 │
-├── notebooks/
-│   └── phase1_full_scale_colab.ipynb   # 500M-token run on Colab, checkpointed to Drive
+├── notebooks/                        # GPU and full-scale runs
+│   ├── phase1_full_scale_colab.ipynb  phase1_full_scale_kaggle.ipynb
+│   ├── phase2_tokenize_corpora.ipynb  phase2_pretrain.ipynb  phase2_evaluate.ipynb
+│   └── phase3_finetune.ipynb         # plus supporting data-collection notebooks
 │
 ├── report/
-│   ├── phase1_report.md
+│   ├── phase1_report.md  phase2_report.md  phase3_report.md
 │   └── figures/
 └── requirements.txt
 ```
@@ -155,9 +162,47 @@ Each `pipeline.yaml` defines two profiles, selected with `--profile`:
   means the corpus is filtered as it downloads, and the ingest stops once the token
   budget is met, so runtime scales with the target rather than the source size.
 
-To scale up, also widen the Sangraha `data_files` patterns in `configs/sources.yaml`
-from a single shard (`verified/ben/data-0.parquet`) to all of them
-(`verified/ben/*.parquet`).
+The Hindi Sangraha source is disabled in favour of the local IndicCorp copy; to use
+more of it, enable it and widen its `data_files` pattern in `configs/sources.yaml`
+from a single shard (`verified/hin/data-0.parquet`) to all of them
+(`verified/hin/*.parquet`).
+
+---
+
+## Reproducing Phases 2 and 3
+
+Pretraining and finetuning ran on Kaggle GPUs through the generated notebooks; every
+other step runs on a CPU. The trained checkpoints are on Google Drive — see
+[Large artifacts](#large-artifacts-google-drive).
+
+```bash
+# Phase 2 — component tests: causality, shapes, bit-identical resume, metrics
+.venv/bin/python scripts/test_model.py
+
+# Phase 2 — pretraining: notebooks/phase2_tokenize_corpora.ipynb writes the token
+# binaries, then notebooks/phase2_pretrain.ipynb trains one language per run
+# (settings documented in hindi/configs/model.yaml and nepali/configs/model.yaml)
+
+# Phase 2 — evaluate a checkpoint, then rebuild the report
+.venv/bin/python scripts/evaluate_model.py --language hi \
+    --checkpoint Phase2-Checkpoints/hindi/checkpoint_best.pt \
+    --data-dir <tokenized-data> --tokenizer hindi/tokenizer/hi_unigram_8000.model
+.venv/bin/python scripts/make_phase2_report.py
+
+# Phase 3 — tests, dataset, finetuning, evaluation, report
+.venv/bin/python scripts/test_reasoning.py
+.venv/bin/python scripts/generate_reasoning_data.py --language hi
+.venv/bin/python scripts/finetune_reasoning.py --language hi \
+    --checkpoint Phase2-Checkpoints/hindi/checkpoint_best.pt \
+    --tokenizer hindi/tokenizer/hi_unigram_8000.model      # or notebooks/phase3_finetune.ipynb
+.venv/bin/python scripts/evaluate_reasoning.py --language hi \
+    --pretrained Phase2-Checkpoints/hindi/checkpoint_best.pt \
+    --finetuned Phase3-Finetuned/hi_finetuned_best.pt \
+    --tokenizer hindi/tokenizer/hi_unigram_8000.model
+.venv/bin/python scripts/make_phase3_report.py
+```
+
+Repeat each per-language command with `--language ne` and the `nepali/` paths.
 
 ---
 
@@ -342,13 +387,16 @@ table below:
 
 ```
 Phase2-Checkpoints/     590 MB   the pretrained models behind every Phase 2 result
-├── hi_checkpoint_best.pt          Model H, step 12,000, val loss 3.2320
-└── ne_checkpoint_best.pt          Model L, step 12,000, val loss 3.5568
+├── hindi/checkpoint_best.pt       Model H, step 12,000, val loss 3.2320
+└── nepali/checkpoint_best.pt      Model L, step 12,000, val loss 3.5568
 
-Phase3-Finetuned/       590 MB   the reasoning-finetuned models
-├── hi_finetuned_best.pt           Model H, answer-span val loss 0.0046
-└── ne_finetuned_best.pt           Model L, answer-span val loss 0.0024
+Phase3-Finetuned/       590 MB   the reasoning-finetuned models (validation-selected)
+├── hi_finetuned_best.pt           Model H, step 1,400, answer-span val loss 0.0046
+└── ne_finetuned_best.pt           Model L, step 1,500, answer-span val loss 0.0024
 ```
+
+All four checkpoints were downloaded back from these links and verified to load, and
+`scripts/evaluate_reasoning.py` run on them produces the Phase 3 results in the report.
 
 `Phase1-Sources/` holds third-party public datasets under their own licences; they
 are mirrored only so a reviewer can reproduce a build without re-downloading. Their

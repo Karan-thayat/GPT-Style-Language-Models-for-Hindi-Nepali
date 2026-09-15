@@ -52,9 +52,14 @@ def parse_args() -> argparse.Namespace:
                         help="Directory holding the reasoning JSONL splits")
     parser.add_argument("--out-dir", type=Path, default=None,
                         help="Where finetuned checkpoints are written")
-    parser.add_argument("--epochs", type=int, default=3)
-    parser.add_argument("--batch-size", type=int, default=32)
-    parser.add_argument("--learning-rate", type=float, default=5e-5)
+    parser.add_argument("--config", type=Path, default=None,
+                        help="Finetuning YAML (default: <language>/configs/finetune.yaml)")
+    parser.add_argument("--epochs", type=int, default=None,
+                        help="Override the config's epoch count")
+    parser.add_argument("--batch-size", type=int, default=None,
+                        help="Override the config's batch size")
+    parser.add_argument("--learning-rate", type=float, default=None,
+                        help="Override the config's peak learning rate")
     parser.add_argument("--device", default=None)
     parser.add_argument("--no-resume", action="store_true",
                         help="Start fresh instead of continuing from a checkpoint")
@@ -98,11 +103,22 @@ def main() -> int:
     logger.info("  parameters: %s", f"{model.num_parameters():,}")
     logger.info("  pretrained to step: %s", f"{payload.get('step', 0):,}")
 
-    config = FinetuneConfig(
-        batch_size=args.batch_size,
-        epochs=args.epochs,
-        learning_rate=args.learning_rate,
-    )
+    import yaml
+
+    config_path = args.config or (REPO_ROOT / directory / "configs" / "finetune.yaml")
+    with open(config_path, "r", encoding="utf-8") as handle:
+        settings = dict(yaml.safe_load(handle)["finetune"])
+    # Command-line values override the file, so a one-off experiment does not
+    # require editing the configuration that documents the graded run.
+    for key, value in (
+        ("epochs", args.epochs),
+        ("batch_size", args.batch_size),
+        ("learning_rate", args.learning_rate),
+    ):
+        if value is not None:
+            settings[key] = value
+    config = FinetuneConfig.from_dict(settings)
+    logger.info("  config: %s", config_path)
 
     train_rows = load_split(data_dir, args.language, "train")
     val_rows = load_split(data_dir, args.language, "validation")

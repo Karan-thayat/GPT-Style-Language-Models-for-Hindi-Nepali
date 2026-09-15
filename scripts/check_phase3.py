@@ -105,6 +105,13 @@ def check_deliverables(checklist: Checklist) -> None:
             detail,
         )
 
+        config = REPO_ROOT / directory / "configs" / "finetune.yaml"
+        checklist.add(
+            f"1. Finetuning config ({label})",
+            config.exists(),
+            "" if config.exists() else f"{config.relative_to(REPO_ROOT)} missing",
+        )
+
         record = REPO_ROOT / directory / "reports" / "finetune_record.json"
         detail = ""
         ok = record.exists()
@@ -198,14 +205,42 @@ def check_requirements(checklist: Checklist) -> None:
             "chance_baseline" in results,
             f"{results.get('chance_baseline', {}).get('overall', 0):.3f}",
         )
-        checklist.add(
-            f"Error analysis present ({label})",
-            "error_analysis" in results,
+        # The error analysis must cover every mistake, not a stored sample: an
+        # earlier revision examined 40 predictions and reported zeros for a model
+        # whose handful of errors fell outside them.
+        finetuned = results.get("finetuned", {})
+        analysis = results.get("error_analysis", {}).get("finetuned", {})
+        covered = (
+            "errors" in finetuned
+            and analysis.get("errors_examined") == finetuned.get("errors")
         )
+        checklist.add(
+            f"Error analysis covers every error ({label})",
+            covered,
+            f"{analysis.get('errors_examined', 0)} of {finetuned.get('errors', '?')} errors"
+            if "errors" in finetuned else "re-run scripts/evaluate_reasoning.py",
+        )
+
+        samples = finetuned.get("successes") or []
+        failures = finetuned.get("failures")
+        checklist.add(
+            f"Qualitative examples recorded ({label})",
+            bool(samples) and (failures is not None),
+            f"{len(samples)} successes, {len(failures or [])} failures",
+        )
+
         attention = results.get("attention", {})
+        prompts = attention.get("finetuned", {}).get("prompts", 0)
         checklist.add(
             f"Attention compared before and after ({label})",
-            "pretrained" in attention and "finetuned" in attention,
+            "pretrained" in attention and "finetuned" in attention and prompts >= 50,
+            f"averaged over {prompts} prompts",
+        )
+        answer_figure = REPO_ROOT / "report" / "figures" / f"reasoning_answer_attention_{code}.png"
+        checklist.add(
+            f"Answer-attention analysis ({label})",
+            "answer_attention" in attention.get("finetuned", {}) and answer_figure.exists(),
+            "" if answer_figure.exists() else "figure missing",
         )
 
 

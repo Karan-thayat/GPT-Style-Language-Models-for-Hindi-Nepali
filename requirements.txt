@@ -1,17 +1,16 @@
-# Phase 1 dependencies (data collection + tokenizer construction).
+# Dependencies for all three phases.
 #
 # Note on what is deliberately absent: no HuggingFace `transformers`, and no
 # pretrained tokenizer package. The project forbids pretrained models and
 # tokenizers, so `sentencepiece` is used only to *train* vocabularies from
-# scratch on this project's own corpora. `datasets` is used purely as a corpus
-# download/streaming client.
-#
-# torch is not required for Phase 1; it is added in Phase 2 for the model.
+# scratch on this project's own corpora, and the Transformer is written from
+# primitive PyTorch layers. `datasets` is used purely as a corpus download client.
 
+# --- Phase 1: data collection and tokenizer construction ---------------------
 sentencepiece==0.2.2      # tokenizer training (BPE / Unigram) from scratch
 datasets==5.0.1           # streaming corpus download from the HF hub
 numpy==2.5.2              # token id arrays / binary corpus output
-PyYAML==6.0.3             # pipeline and source manifest configs
+PyYAML==6.0.3             # pipeline, source manifest, model and finetune configs
 
 # Manual collection: scraping + HTML extraction
 requests==2.34.2
@@ -24,11 +23,16 @@ pandas==3.0.5
 tqdm==4.70.0
 regex==2026.7.19
 
+# --- Phases 2 and 3: model, pretraining, finetuning, evaluation --------------
+# A floor rather than a pin: training ran on Kaggle's GPU build and the tests on
+# a CPU build. 2.4 is the first release where torch.amp.GradScaler("cuda") is
+# the supported mixed-precision API the trainer uses.
+torch>=2.4
+
 # --- External (non-pip) tools for OCR ingestion -----------------------------
 # Only needed if you run scripts/run_ocr.py on scanned PDFs:
 #
 #   sudo apt-get install -y poppler-utils tesseract-ocr \
-#       tesseract-ocr-ben tesseract-ocr-asm
+#       tesseract-ocr-hin tesseract-ocr-nep
 #
-# Check availability with:  python scripts/run_ocr.py --language bn --check
-torch>=2.0
+# Check availability with:  python scripts/run_ocr.py --language hi --check

@@ -371,6 +371,110 @@ def test_scoring() -> None:
     )
 
 
+def test_error_coverage() -> None:
+    """The error analysis must count every mistake, not a stored sample.
+
+    A regression test for a real defect: errors were once categorized from the
+    first 40 stored predictions only, so a near-perfect model whose few mistakes
+    fell outside that window reported an error profile of all zeros. An untrained
+    model gets nearly every one of 60 examples wrong, so more errors exist than
+    the prediction sample holds, and every one must be counted.
+    """
+    print("\n[error coverage]")
+    tokenizer = tokenizer_for("hi")
+    if tokenizer is None:
+        print("  SKIP  tokenizer not present")
+        return
+
+    rows = [
+        e.to_dict()
+        for e in ReasoningDatasetBuilder(GeneratorConfig(language="hi", total_examples=900)).build()
+        if e.split == "test"
+    ][:60]
+    torch.manual_seed(0)
+    model = TransformerLM(
+        ModelConfig(vocab_size=8000, n_layer=2, n_head=2, n_embd=64, block_size=64, dropout=0.0)
+    ).eval()
+    results = score_examples(model, rows, tokenizer, device="cpu")
+    errors = error_analysis(results, rows)
+
+    check("more errors than the stored prediction sample", results["errors"] > 40,
+          f"{results['errors']} errors, {len(results['predictions'])} stored")
+    check("every error is categorized",
+          sum(results["error_counts"].values()) == results["errors"])
+    check("error analysis examines every error",
+          errors["errors_examined"] == results["errors"])
+    check("failure sample is capped and labelled",
+          0 < len(results["failures"]) <= 60
+          and all("category" in f for f in results["failures"]))
+
+
+def test_attention_analysis() -> None:
+    """Averaged attention and answer attention must be well-formed."""
+    print("\n[reasoning attention]")
+    from lma.reasoning.evaluate import answer_attention_by_layer, averaged_attention_statistics
+
+    for language in ("hi", "ne"):
+        tokenizer = tokenizer_for(language)
+        if tokenizer is None:
+            print(f"  SKIP  {language}: tokenizer not present")
+            continue
+        rows = [
+            e.to_dict()
+            for e in ReasoningDatasetBuilder(
+                GeneratorConfig(language=language, total_examples=600)
+            ).build()
+            if e.split == "test"
+        ][:30]
+        torch.manual_seed(0)
+        model = TransformerLM(
+            ModelConfig(vocab_size=8000, n_layer=2, n_head=2, n_embd=64,
+                        block_size=64, dropout=0.0)
+        ).eval()
+
+        averaged = averaged_attention_statistics(model, rows, tokenizer, device="cpu", limit=20)
+        check(f"[{language}] attention averaged over the requested prompts",
+              averaged["prompts"] == 20)
+        check(f"[{language}] every head classified after averaging",
+              sum(averaged["head_groups"].values()) == 4)
+
+        answer = answer_attention_by_layer(model, rows, tokenizer, device="cpu", limit=30)
+        check(f"[{language}] answer token located in the prompts",
+              answer["prompts"] > 0, f"{answer['prompts']} measured, {answer['skipped']} skipped")
+        in_range = all(
+            0.0 <= value <= 1.0 + 1e-6
+            for series in ("answer_max_head", "answer_mean_head", "other_entity_max_head")
+            for value in answer[series]
+        )
+        check(f"[{language}] attention masses are probabilities", in_range)
+        check(f"[{language}] strongest head is at least the head average",
+              all(a >= b - 1e-9 for a, b in zip(answer["answer_max_head"], answer["answer_mean_head"])))
+
+
+def test_config_matches_record() -> None:
+    """The documented finetuning config must be the one that actually ran."""
+    print("\n[config vs record]")
+    import json
+
+    import yaml
+
+    for language, directory in (("hi", "hindi"), ("ne", "nepali")):
+        config_path = REPO_ROOT / directory / "configs" / "finetune.yaml"
+        record_path = REPO_ROOT / directory / "reports" / "finetune_record.json"
+        check(f"[{language}] finetuning config exists", config_path.exists())
+        if not (config_path.exists() and record_path.exists()):
+            print(f"  SKIP  [{language}] no finetuning record to compare against")
+            continue
+
+        documented = FinetuneConfig.from_dict(
+            yaml.safe_load(config_path.read_text(encoding="utf-8"))["finetune"]
+        ).to_dict()
+        recorded = json.loads(record_path.read_text(encoding="utf-8"))["finetune_config"]
+        mismatched = sorted(k for k in recorded if documented.get(k) != recorded[k])
+        check(f"[{language}] config file matches the recorded run", not mismatched,
+              str(mismatched) if mismatched else f"{len(recorded)} hyperparameters")
+
+
 def test_ablation() -> None:
     """The no-positional-embeddings ablation must be a real ablation."""
     print("\n[positional ablation]")
@@ -438,6 +542,9 @@ def main() -> int:
     test_dataset_masking()
     test_finetune_loop()
     test_scoring()
+    test_error_coverage()
+    test_attention_analysis()
+    test_config_matches_record()
     test_ablation()
 
     total = PASSED + FAILED

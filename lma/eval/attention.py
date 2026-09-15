@@ -280,7 +280,7 @@ def plot_head_summary(stats: dict, out_path, title: str = ""):
         axis.set_ylabel("layer")
         axis.set_xticks(range(data.shape[1]))
         axis.set_yticks(range(data.shape[0]))
-        figure.colorbar(image, ax=axis, fraction=0.046)
+        figure.colorbar(image, ax=axis, fraction=0.046, label=name)
 
     if title:
         figure.suptitle(title, fontsize=12)

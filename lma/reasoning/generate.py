@@ -49,7 +49,8 @@ A rejected earlier design, recorded because it is the obvious one
 -----------------------------------------------------------------
 Reserving names for the *answer* position - so every test answer was a token
 absent from all training targets - makes the task unanswerable rather than hard.
-Measured on a finetuned model: **0.0000** exact match on held-out-answer examples
+Measured during development on a small, randomly initialized model trained on
+this task: **0.0000** exact match on held-out-answer examples
 against **0.2600** on examples whose prompts were equally unseen but whose
 answers came from the training vocabulary. The evaluation set, not the model, was
 the failure. Chain-level disjointness tests the same generalization without that
@@ -73,8 +74,9 @@ from .templates import Dimension, LanguageTemplates, get_templates
 #:
 #: An earlier revision reserved these names for the answer position, so every
 #: test answer was a token the model had never been trained to emit. That is not
-#: leakage control - it makes the task unanswerable. Measured on a finetuned
-#: model: 0.0000 exact match on held-out-answer examples against 0.2600 on
+#: leakage control - it makes the task unanswerable. Measured during
+#: development on a small, randomly initialized model trained on this task:
+#: 0.0000 exact match on held-out-answer examples against 0.2600 on
 #: examples using training entities with equally unseen prompts. Generalization
 #: is therefore tested over *comparison structures*, not over vocabulary: the
 #: evaluation entities are ones the model can produce, while the chains,

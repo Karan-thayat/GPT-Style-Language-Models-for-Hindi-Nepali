@@ -43,6 +43,22 @@ from ..tokenizer.train_tokenizer import BOS_ID
 #: See :func:`above_chance`, which is the comparison that should be quoted.
 
 
+def categorize_error(row: dict, predicted: str) -> str:
+    """Name the kind of mistake one wrong prediction represents.
+
+    * ``off_chain`` - not any entity named in the premises, so the model did not
+      treat the answer as a choice among the named entities at all.
+    * ``inverted`` - the entity at the opposite end of the ordering, which
+      suggests the comparison was tracked but the question's polarity was not.
+    * ``wrong_entity`` - any other named entity.
+    """
+    entities = row["entities"]
+    if predicted not in entities:
+        return "off_chain"
+    opposite = entities[-1] if row.get("ask_most") else entities[0]
+    return "inverted" if predicted == opposite else "wrong_entity"
+
+
 @torch.no_grad()
 def score_examples(
     model,
@@ -78,6 +94,13 @@ def score_examples(
     by_dimension: dict[str, list[int]] = defaultdict(list)
     by_polarity: dict[str, list[int]] = defaultdict(list)
     predictions: list[dict] = []
+    # Error categories are counted over EVERY example, not over a stored sample.
+    # An earlier revision categorized only the first 40 stored predictions, so a
+    # near-perfect model reported an error profile of all zeros because none of
+    # its handful of mistakes happened to fall in that window.
+    error_counts = {"off_chain": 0, "wrong_entity": 0, "inverted": 0}
+    failures: list[dict] = []
+    successes: list[dict] = []
 
     for start in range(0, len(examples), batch_size):
         chunk = examples[start : start + batch_size]
@@ -124,16 +147,26 @@ def score_examples(
             by_dimension[row.get("dimension", "unknown")].append(free_hit)
             by_polarity["most" if row.get("ask_most") else "least"].append(free_hit)
 
+            predicted_text = tokenizer.id_to_piece(predicted_id).lstrip("▁")
+            record = {
+                "prompt": row["prompt"],
+                "expected": row["answer"],
+                "predicted": predicted_text,
+                "correct": bool(free_hit),
+                "chain_length": row["chain_length"],
+                "ask_most": bool(row.get("ask_most")),
+            }
             if len(predictions) < 40:
-                predictions.append(
-                    {
-                        "prompt": row["prompt"],
-                        "expected": row["answer"],
-                        "predicted": tokenizer.id_to_piece(predicted_id).lstrip("▁"),
-                        "correct": bool(free_hit),
-                        "chain_length": row["chain_length"],
-                    }
-                )
+                predictions.append(record)
+
+            if free_hit:
+                if len(successes) < 20:
+                    successes.append(record)
+            else:
+                category = categorize_error(row, predicted_text)
+                error_counts[category] += 1
+                if len(failures) < 60:
+                    failures.append({**record, "category": category})
 
     def rates(groups: dict) -> dict:
         """Convert per-slice hit lists into accuracy and support."""
@@ -157,6 +190,10 @@ def score_examples(
         "by_dimension": rates(by_dimension),
         "by_polarity": rates(by_polarity),
         "predictions": predictions,
+        "errors": total - correct_free,
+        "error_counts": error_counts,
+        "failures": failures,
+        "successes": successes,
     }
 
 
@@ -283,27 +320,21 @@ def error_analysis(results: dict, examples: list[dict]) -> dict:
       which suggests the model tracked the comparison but mishandled the
       question's polarity.
     """
-    counts = {"off_chain": 0, "wrong_entity": 0, "inverted": 0}
-    index = {row["prompt"]: row for row in examples}
-
-    for prediction in results.get("predictions", []):
-        if prediction["correct"]:
-            continue
-        row = index.get(prediction["prompt"])
-        if row is None:
-            continue
-        predicted = prediction["predicted"]
-        entities = row["entities"]
-
-        if predicted not in entities:
-            counts["off_chain"] += 1
-            continue
-
-        opposite = entities[-1] if row.get("ask_most") else entities[0]
-        if predicted == opposite:
-            counts["inverted"] += 1
-        else:
-            counts["wrong_entity"] += 1
+    if "error_counts" in results:
+        # Counted over every scored example by score_examples.
+        counts = dict(results["error_counts"])
+    else:
+        # Results written before counting moved into score_examples carry only a
+        # sample of predictions. Categorize what is there; errors_examined below
+        # then states the real coverage instead of implying all errors were seen.
+        counts = {"off_chain": 0, "wrong_entity": 0, "inverted": 0}
+        index = {row["prompt"]: row for row in examples}
+        for prediction in results.get("predictions", []):
+            if prediction["correct"]:
+                continue
+            row = index.get(prediction["prompt"])
+            if row is not None:
+                counts[categorize_error(row, prediction["predicted"])] += 1
 
     total = sum(counts.values())
     return {
@@ -312,4 +343,139 @@ def error_analysis(results: dict, examples: list[dict]) -> dict:
             key: (value / total if total else 0.0) for key, value in counts.items()
         },
         "errors_examined": total,
+    }
+
+
+@torch.no_grad()
+def averaged_attention_statistics(
+    model, examples: list[dict], tokenizer, device: str | None = None, limit: int = 200
+) -> dict:
+    """Per-head entropy and mean distance, averaged over many reasoning prompts.
+
+    A single prompt is a sample of one: its head classification can flip on the
+    idiosyncrasies of that sentence. Averaging each head's statistics over many
+    held-out prompts first, and classifying heads on the averages, is what makes a
+    pretrained-versus-finetuned comparison evidence rather than anecdote.
+
+    Args:
+        model: A :class:`~lma.model.TransformerLM`.
+        examples: Reasoning rows carrying ``prompt``.
+        tokenizer: SentencePiece processor for this language.
+        device: Where to run. Defaults to the model's device.
+        limit: How many prompts to average over.
+
+    Returns:
+        The same keys as :func:`lma.eval.attention.attention_statistics`, plus
+        ``head_groups`` and the number of ``prompts`` averaged.
+    """
+    from ..eval.attention import attention_statistics, classify_heads
+
+    device = device or str(next(model.parameters()).device)
+    model.eval()
+
+    keys = ("entropy", "normalized_entropy", "mean_distance")
+    sums: dict | None = None
+    count = 0
+
+    for row in examples[:limit]:
+        ids = torch.tensor(
+            [[BOS_ID, *tokenizer.encode(row["prompt"], out_type=int)]],
+            dtype=torch.long,
+            device=device,
+        )
+        stats = attention_statistics(model(ids, return_attention=True)["attentions"])
+        if sums is None:
+            sums = {key: [[0.0] * len(layer) for layer in stats[key]] for key in keys}
+        for key in keys:
+            for layer_index, layer in enumerate(stats[key]):
+                for head_index, value in enumerate(layer):
+                    sums[key][layer_index][head_index] += value
+        count += 1
+
+    if not count:
+        raise ValueError("no prompts to average attention over")
+
+    averaged = {
+        key: [[value / count for value in layer] for layer in sums[key]] for key in keys
+    }
+    averaged["layer_mean_entropy"] = [sum(l) / len(l) for l in averaged["entropy"]]
+    averaged["layer_mean_distance"] = [sum(l) / len(l) for l in averaged["mean_distance"]]
+    averaged["n_layer"] = len(averaged["entropy"])
+    averaged["n_head"] = len(averaged["entropy"][0])
+    averaged["prompts"] = count
+    averaged["head_groups"] = classify_heads(averaged)["counts"]
+    return averaged
+
+
+@torch.no_grad()
+def answer_attention_by_layer(
+    model, examples: list[dict], tokenizer, device: str | None = None, limit: int = 200
+) -> dict:
+    """Attention paid by the answer position to the correct entity, per layer.
+
+    The last prompt position is where the answer token is predicted, so what it
+    attends to is the most direct view of how the model reaches its answer. For
+    every layer this measures the attention mass that position puts on the
+    correct entity's token in the premises, for the single head that puts the
+    most there - a specialized head, if one exists - and averaged over heads.
+    The same measurement per occurrence of the *other* named entities is the
+    baseline: a head that has learned the task should favour the answer over the
+    distractors, while an untrained one has no reason to.
+
+    The answer is always an end of the ordering, so it occurs exactly once in the
+    premises. Prompts where its token cannot be located in the tokenized prompt
+    (a name merged with a suffix into one piece) are skipped and counted.
+
+    Returns:
+        Per-layer lists ``answer_max_head``, ``answer_mean_head`` and
+        ``other_entity_max_head``, plus ``prompts`` measured and ``skipped``.
+    """
+    device = device or str(next(model.parameters()).device)
+    model.eval()
+
+    answer_max: list[float] = []
+    answer_mean: list[float] = []
+    other_max: list[float] = []
+    count = 0
+    skipped = 0
+
+    for row in examples[:limit]:
+        ids = [BOS_ID, *tokenizer.encode(row["prompt"], out_type=int)]
+        answer_id = tokenizer.encode(row["answer"], out_type=int)[0]
+        other_ids = {
+            tokenizer.encode(entity, out_type=int)[0]
+            for entity in row["entities"]
+            if entity != row["answer"]
+        }
+        answer_positions = [i for i, token in enumerate(ids) if token == answer_id]
+        other_positions = [i for i, token in enumerate(ids) if token in other_ids]
+        if not answer_positions or not other_positions:
+            skipped += 1
+            continue
+
+        tensor = torch.tensor([ids], dtype=torch.long, device=device)
+        attentions = model(tensor, return_attention=True)["attentions"]
+        if not answer_max:
+            answer_max = [0.0] * len(attentions)
+            answer_mean = [0.0] * len(attentions)
+            other_max = [0.0] * len(attentions)
+
+        for layer, attention in enumerate(attentions):
+            last = attention[0, :, -1, :].float()  # (heads, positions)
+            on_answer = last[:, answer_positions].sum(dim=-1)
+            per_other = last[:, other_positions].sum(dim=-1) / len(other_positions)
+            answer_max[layer] += float(on_answer.max())
+            answer_mean[layer] += float(on_answer.mean())
+            other_max[layer] += float(per_other.max())
+        count += 1
+
+    if not count:
+        raise ValueError("no prompt had a locatable answer token")
+
+    return {
+        "answer_max_head": [value / count for value in answer_max],
+        "answer_mean_head": [value / count for value in answer_mean],
+        "other_entity_max_head": [value / count for value in other_max],
+        "prompts": count,
+        "skipped": skipped,
     }
