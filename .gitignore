@@ -1,6 +1,3 @@
-# --- Large artifacts: Google Drive, not git ---------------------------------
-# The submission instructions require datasets, tokenized corpora, and model
-# checkpoints to be hosted on Drive with links in the README, not committed.
 
 # Raw and processed corpora
 */data/raw/
